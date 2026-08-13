@@ -1,0 +1,38 @@
+import { useSubtestSession } from './useSubtestSession.js'
+import { createAudioRecorder } from './AudioRecorder.js'
+import { SUBTESTS } from './subtests.js'
+import { SessionResults } from '../pages/SessionResults.jsx'
+
+// TODO(follow-on plan): replace with a real settings screen. Hardcoded here
+// because this plan doesn't build session configuration — see "What's
+// Deliberately Out of Scope Here" at the bottom of this plan.
+const SESSION_CONTEXT = { place: 'โรงพยาบาลตัวอย่าง', province: 'กรุงเทพ' }
+
+export function SessionRunner() {
+  const { currentSubtest, phase, results, beginRecording, finishRecording } = useSubtestSession(
+    SUBTESTS,
+    {
+      transcribeAudio: (buffer, mimeType, language) =>
+        window.api.transcribeAudio(buffer, mimeType, language),
+      scoreItem: (subtestId, transcript, context) =>
+        window.api.scoreItem(subtestId, transcript, context),
+      createRecorder: createAudioRecorder
+    },
+    SESSION_CONTEXT
+  )
+
+  if (phase === 'done') {
+    return <SessionResults results={results} subtests={SUBTESTS} />
+  }
+
+  return (
+    <div className="session-runner">
+      <h2>{currentSubtest.section}</h2>
+      <p>{currentSubtest.instructionTextEn}</p>
+      <p lang="th">{currentSubtest.instructionTextTh}</p>
+      {phase === 'instruction' && <button onClick={beginRecording}>Start</button>}
+      {phase === 'recording' && <button onClick={finishRecording}>Stop &amp; Score</button>}
+      {phase === 'scoring' && <p>Scoring...</p>}
+    </div>
+  )
+}
