@@ -2,6 +2,8 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { registerAsrHandlers } from './ipc/asr.js'
+import { registerScoringHandlers } from './ipc/scoring.js'
 
 function createWindow() {
   // Create the browser window.
@@ -51,6 +53,9 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  registerAsrHandlers()
+  registerScoringHandlers()
 
   createWindow()
 
