@@ -1,3 +1,6 @@
+// electron-vite only injects env vars prefixed with VITE_/MAIN_VITE_/... and only
+// via import.meta.env, so `.env` is loaded here to populate process.env instead.
+import 'dotenv/config'
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
