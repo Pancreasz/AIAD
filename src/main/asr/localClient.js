@@ -34,6 +34,9 @@ export function createLocalClient({ baseUrl, fetchImpl = fetch, timeoutMs = 6000
     }
 
     const data = await response.json()
+    if (typeof data.text !== 'string') {
+      throw new Error(`Local ASR returned a malformed response: ${JSON.stringify(data)}`)
+    }
     return data.text
   }
 

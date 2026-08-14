@@ -96,4 +96,28 @@ describe('createLocalClient', () => {
       'Local ASR unreachable: ECONNREFUSED'
     )
   })
+
+  it('throws a descriptive error when a 200 response body is missing text', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({})
+    })
+    const client = createLocalClient({ baseUrl: 'http://127.0.0.1:9999', fetchImpl })
+
+    await expect(client.transcribe(new ArrayBuffer(8), 'audio/webm', 'th')).rejects.toThrow(
+      'Local ASR returned a malformed response'
+    )
+  })
+
+  it('treats an empty string transcript as a valid result (silence), not a malformed response', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ text: '' })
+    })
+    const client = createLocalClient({ baseUrl: 'http://127.0.0.1:9999', fetchImpl })
+
+    const result = await client.transcribe(new ArrayBuffer(8), 'audio/webm', 'th')
+
+    expect(result).toBe('')
+  })
 })
