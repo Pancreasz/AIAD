@@ -71,14 +71,17 @@ describe('createLocalClient', () => {
         timeoutMs: 5000
       })
 
-      const pending = client.transcribe(new ArrayBuffer(8), 'audio/webm', 'th')
+      const pending = client
+        .transcribe(new ArrayBuffer(8), 'audio/webm', 'th')
+        .catch((error) => error)
 
       expect(capturedSignal).toBeDefined()
       expect(capturedSignal.aborted).toBe(false)
 
       await vi.advanceTimersByTimeAsync(5000)
 
-      await expect(pending).rejects.toThrow('Local ASR timed out after 5000ms')
+      const error = await pending
+      expect(error.message).toBe('Local ASR timed out after 5000ms')
       expect(capturedSignal.aborted).toBe(true)
     } finally {
       vi.useRealTimers()
