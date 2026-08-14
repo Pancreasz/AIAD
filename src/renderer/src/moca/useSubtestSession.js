@@ -22,14 +22,17 @@ export function useSubtestSession(
     setPhase('scoring')
     const blob = await recorderRef.current.stop()
     const audioBuffer = await blob.arrayBuffer()
-    const transcript = await transcribeAudio(audioBuffer, blob.type, 'th')
+    const { text: transcript, engine } = await transcribeAudio(audioBuffer, blob.type, 'th')
     const scoreResult = await scoreItem(currentSubtest.scorerId, transcript, {
       expectedSequence: currentSubtest.expectedSequence,
       referenceDate: new Date(),
       ...sessionContext
     })
 
-    setResults((prev) => [...prev, { subtestId: currentSubtest.id, transcript, ...scoreResult }])
+    setResults((prev) => [
+      ...prev,
+      { subtestId: currentSubtest.id, transcript, engine, ...scoreResult }
+    ])
 
     if (index + 1 < subtests.length) {
       setIndex((prev) => prev + 1)

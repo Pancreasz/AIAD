@@ -13,7 +13,7 @@ function setup() {
     stop: vi.fn().mockResolvedValue(new Blob(['x']))
   }
   const createRecorder = vi.fn(() => fakeRecorder)
-  const transcribeAudio = vi.fn().mockResolvedValue('สิงโต แรด อูฐ')
+  const transcribeAudio = vi.fn().mockResolvedValue({ text: 'สิงโต แรด อูฐ', engine: 'local' })
   const scoreItem = vi.fn().mockResolvedValue({ score: 3, maxScore: 3 })
   return { fakeRecorder, createRecorder, transcribeAudio, scoreItem }
 }
@@ -42,7 +42,12 @@ describe('useSubtestSession', () => {
     expect(result.current.currentSubtest.id).toBe('orientation')
     expect(result.current.phase).toBe('instruction')
     expect(result.current.results).toHaveLength(1)
-    expect(result.current.results[0]).toMatchObject({ subtestId: 'naming', score: 3, maxScore: 3 })
+    expect(result.current.results[0]).toMatchObject({
+      subtestId: 'naming',
+      score: 3,
+      maxScore: 3,
+      engine: 'local'
+    })
   })
 
   it('sets phase to done after the last subtest is scored', async () => {

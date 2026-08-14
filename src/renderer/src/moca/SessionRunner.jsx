@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useSubtestSession } from './useSubtestSession.js'
 import { createAudioRecorder } from './AudioRecorder.js'
 import { SUBTESTS } from './subtests.js'
@@ -7,6 +8,13 @@ import { SessionResults } from '../pages/SessionResults.jsx'
 // because this plan doesn't build session configuration — see "What's
 // Deliberately Out of Scope Here" at the bottom of this plan.
 const SESSION_CONTEXT = { place: 'โรงพยาบาลตัวอย่าง', province: 'กรุงเทพ' }
+
+const ASR_LABELS = {
+  loading: 'local engine loading…',
+  ready: 'local (ready)',
+  unavailable: 'unavailable — using cloud fallback',
+  stopped: 'stopped'
+}
 
 export function SessionRunner() {
   const { currentSubtest, phase, results, beginRecording, finishRecording } = useSubtestSession(
@@ -21,12 +29,29 @@ export function SessionRunner() {
     SESSION_CONTEXT
   )
 
+  const [asrStatus, setAsrStatus] = useState('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    const read = async () => {
+      const status = await window.api.getAsrStatus()
+      if (!cancelled) setAsrStatus(status)
+    }
+    read()
+    const interval = setInterval(read, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
+
   if (phase === 'done') {
     return <SessionResults results={results} subtests={SUBTESTS} />
   }
 
   return (
     <div className="session-runner">
+      <p className="asr-status">ASR: {ASR_LABELS[asrStatus] ?? asrStatus}</p>
       <h2>{currentSubtest.section}</h2>
       <p>{currentSubtest.instructionTextEn}</p>
       <p lang="th">{currentSubtest.instructionTextTh}</p>

@@ -10,6 +10,7 @@ export function SessionResults({ results, subtests }) {
           <tr>
             <th>Subtest</th>
             <th>Score</th>
+            <th>Engine</th>
           </tr>
         </thead>
         <tbody>
@@ -21,6 +22,7 @@ export function SessionResults({ results, subtests }) {
                 <td>
                   {r.score} / {r.maxScore}
                 </td>
+                <td>{r.engine ?? '—'}</td>
               </tr>
             )
           })}
