@@ -159,4 +159,69 @@ describe('createSidecarProcess', () => {
     expect(sidecar.status()).toBe('unavailable')
     expect(sidecar.isReady()).toBe(false)
   })
+
+  it('stays loading through a transient connection failure and recovers to ready', async () => {
+    const { spawnImpl } = makeSpawn()
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockResolvedValue({ ok: true, json: async () => ({ status: 'ready' }) })
+    const sidecar = createSidecarProcess({
+      pythonPath: 'py',
+      scriptPath: 's.py',
+      port: 1,
+      spawnImpl,
+      fetchImpl,
+      loadingPollMs: 1000
+    })
+
+    sidecar.start()
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(sidecar.status()).toBe('loading')
+    expect(sidecar.isReady()).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(sidecar.status()).toBe('ready')
+    expect(sidecar.isReady()).toBe(true)
+  })
+
+  it('start() is idempotent while already running: does not spawn a second child', () => {
+    const { spawnImpl } = makeSpawn()
+    const sidecar = createSidecarProcess({
+      pythonPath: 'py',
+      scriptPath: 's.py',
+      port: 1,
+      spawnImpl,
+      fetchImpl: healthReturning('loading')
+    })
+
+    sidecar.start()
+    sidecar.start()
+
+    expect(spawnImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not respawn or refill the restart budget when start() is called again after permanent failure', () => {
+    const { spawnImpl, children } = makeSpawn()
+    const sidecar = createSidecarProcess({
+      pythonPath: 'py',
+      scriptPath: 's.py',
+      port: 1,
+      spawnImpl,
+      fetchImpl: healthReturning('loading')
+    })
+
+    sidecar.start()
+    children[0].emit('exit', 1)
+    children[1].emit('exit', 1)
+
+    expect(sidecar.status()).toBe('unavailable')
+
+    sidecar.start()
+
+    expect(spawnImpl).toHaveBeenCalledTimes(2)
+    expect(sidecar.status()).toBe('unavailable')
+  })
 })
