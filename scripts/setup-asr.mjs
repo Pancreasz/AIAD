@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { spawnSync } from 'child_process'
 import { resolve } from 'path'
 import { SIDECAR_DIR, VENV_DIR, venvPython, venvExists } from './venvPython.mjs'
