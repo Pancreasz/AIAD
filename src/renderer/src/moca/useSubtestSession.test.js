@@ -83,4 +83,50 @@ describe('useSubtestSession', () => {
       })
     )
   })
+
+  it('moves to the error phase and exposes the message when transcribeAudio rejects', async () => {
+    const deps = setup()
+    deps.transcribeAudio.mockRejectedValue(
+      new Error('Transcription failed.\n  local:  boom\n  openai: cloud fallback disabled (MOCA_ALLOW_CLOUD_FALLBACK=false)')
+    )
+    const { result } = renderHook(() => useSubtestSession(subtests, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+
+    await act(async () => {
+      await result.current.finishRecording()
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(result.current.error).toBe(
+      'Transcription failed.\n  local:  boom\n  openai: cloud fallback disabled (MOCA_ALLOW_CLOUD_FALLBACK=false)'
+    )
+    expect(result.current.results).toHaveLength(0)
+    expect(result.current.currentSubtest.id).toBe('naming')
+  })
+
+  it('retryRecording clears the error and returns to instruction on the same subtest without altering results', async () => {
+    const deps = setup()
+    deps.transcribeAudio.mockRejectedValue(new Error('boom'))
+    const { result } = renderHook(() => useSubtestSession(subtests, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+    await act(async () => {
+      await result.current.finishRecording()
+    })
+    expect(result.current.phase).toBe('error')
+
+    act(() => {
+      result.current.retryRecording()
+    })
+
+    expect(result.current.phase).toBe('instruction')
+    expect(result.current.error).toBeNull()
+    expect(result.current.currentSubtest.id).toBe('naming')
+    expect(result.current.results).toHaveLength(0)
+  })
 })

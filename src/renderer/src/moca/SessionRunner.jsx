@@ -17,7 +17,15 @@ const ASR_LABELS = {
 }
 
 export function SessionRunner() {
-  const { currentSubtest, phase, results, beginRecording, finishRecording } = useSubtestSession(
+  const {
+    currentSubtest,
+    phase,
+    results,
+    error,
+    beginRecording,
+    finishRecording,
+    retryRecording
+  } = useSubtestSession(
     SUBTESTS,
     {
       transcribeAudio: (buffer, mimeType, language) =>
@@ -47,6 +55,16 @@ export function SessionRunner() {
 
   if (phase === 'done') {
     return <SessionResults results={results} subtests={SUBTESTS} />
+  }
+
+  if (phase === 'error') {
+    return (
+      <div className="session-runner">
+        <h2>{currentSubtest.section}</h2>
+        <p style={{ whiteSpace: 'pre-wrap' }}>{error}</p>
+        <button onClick={retryRecording}>Retry</button>
+      </div>
+    )
   }
 
   return (
