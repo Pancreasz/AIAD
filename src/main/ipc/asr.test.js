@@ -8,7 +8,7 @@ vi.mock('electron', () => ({
   }
 }))
 
-const { registerAsrHandlers } = await import('./asr.js')
+const { registerAsrHandlers, resolveTimeoutMs } = await import('./asr.js')
 
 function fakeSidecar({ ready = false, status = 'loading' } = {}) {
   return {
@@ -43,5 +43,19 @@ describe('registerAsrHandlers', () => {
     await expect(handlers.get('asr:transcribe')({}, PAYLOAD)).rejects.toThrow(
       'OPENAI_API_KEY is not set'
     )
+  })
+})
+
+describe('resolveTimeoutMs', () => {
+  it('falls back to 60000 for missing, non-numeric, zero, or negative values', () => {
+    expect(resolveTimeoutMs(undefined)).toBe(60000)
+    expect(resolveTimeoutMs('')).toBe(60000)
+    expect(resolveTimeoutMs('not-a-number')).toBe(60000)
+    expect(resolveTimeoutMs('0')).toBe(60000)
+    expect(resolveTimeoutMs('-5')).toBe(60000)
+  })
+
+  it('uses the configured value when it is a positive finite number', () => {
+    expect(resolveTimeoutMs('5000')).toBe(5000)
   })
 })

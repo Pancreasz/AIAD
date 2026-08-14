@@ -24,16 +24,23 @@ function findFreePort() {
 }
 
 let sidecar = null
+let quitting = false
+let sidecarStartupFailed = false
 
 async function startSidecar() {
   const configured = Number(process.env.MOCA_ASR_PORT || 0)
   const port = configured > 0 ? configured : await findFreePort()
+  // The app may have started quitting while we were awaiting the port lookup
+  // above. Don't spawn a fresh Python process (holding a large model) that
+  // will-quit has already fired and has no further hook to kill.
+  if (quitting) return null
   sidecar = createSidecarProcess({
     pythonPath: venvPython(),
     scriptPath: SERVER_SCRIPT,
     port
   })
   sidecar.start()
+  if (quitting) sidecar.stop()
   return sidecar
 }
 
@@ -92,12 +99,21 @@ app.whenReady().then(() => {
 
   registerAsrHandlers({
     isReady: () => (sidecar ? sidecar.isReady() : false),
-    status: () => (sidecar ? sidecar.status() : 'loading'),
+    status: () => {
+      if (sidecar) return sidecar.status()
+      // findFreePort() (or the port lookup) rejected before the sidecar could
+      // even be constructed -- report the true outcome instead of leaving the
+      // UI stuck on "loading" for the rest of the session.
+      return sidecarStartupFailed ? 'unavailable' : 'loading'
+    },
     baseUrl: () => (sidecar ? sidecar.baseUrl() : 'http://127.0.0.1:0')
   })
   registerScoringHandlers()
 
-  pendingSidecar.catch((error) => console.error(`[asr-sidecar] ${error.message}`))
+  pendingSidecar.catch((error) => {
+    sidecarStartupFailed = true
+    console.error(`[asr-sidecar] ${error.message}`)
+  })
 
   createWindow()
 
@@ -109,6 +125,7 @@ app.whenReady().then(() => {
 })
 
 app.on('will-quit', () => {
+  quitting = true
   if (sidecar) sidecar.stop()
 })
 
