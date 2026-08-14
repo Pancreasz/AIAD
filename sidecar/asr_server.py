@@ -10,6 +10,7 @@ import os
 import threading
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 DEFAULT_MODEL = "deepdml/faster-whisper-large-v3-turbo-ct2"
 
@@ -42,6 +43,12 @@ def start_loading():
     return thread
 
 
+def _transcribe_sync(model, audio, language):
+    """Run the model and drain its lazy segment generator, off the event loop."""
+    segments, _info = model.transcribe(audio, language=language)
+    return "".join(segment.text for segment in segments).strip()
+
+
 @app.get("/health")
 def health():
     if _load_error:
@@ -55,8 +62,8 @@ async def transcribe(file: UploadFile = File(...), language: str = Form("th")):
         raise HTTPException(status_code=503, detail="model not loaded")
 
     audio = io.BytesIO(await file.read())
-    segments, _info = _model.transcribe(audio, language=language)
-    return {"text": "".join(segment.text for segment in segments).strip()}
+    text = await run_in_threadpool(_transcribe_sync, _model, audio, language)
+    return {"text": text}
 
 
 def main():
