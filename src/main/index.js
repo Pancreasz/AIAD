@@ -7,6 +7,35 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerAsrHandlers } from './ipc/asr.js'
 import { registerScoringHandlers } from './ipc/scoring.js'
+import { createServer } from 'net'
+import { createSidecarProcess } from './asr/sidecarProcess.js'
+import { venvPython, SERVER_SCRIPT } from '../../scripts/venvPython.mjs'
+
+function findFreePort() {
+  return new Promise((resolve, reject) => {
+    const server = createServer()
+    server.unref()
+    server.on('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address()
+      server.close(() => resolve(port))
+    })
+  })
+}
+
+let sidecar = null
+
+async function startSidecar() {
+  const configured = Number(process.env.MOCA_ASR_PORT || 0)
+  const port = configured > 0 ? configured : await findFreePort()
+  sidecar = createSidecarProcess({
+    pythonPath: venvPython(),
+    scriptPath: SERVER_SCRIPT,
+    port
+  })
+  sidecar.start()
+  return sidecar
+}
 
 function createWindow() {
   // Create the browser window.
@@ -57,8 +86,18 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  registerAsrHandlers()
+  // Deliberately NOT awaited: the window must appear while Python loads the
+  // model in the background. See the spec's "Startup must not block the window".
+  const pendingSidecar = startSidecar()
+
+  registerAsrHandlers({
+    isReady: () => (sidecar ? sidecar.isReady() : false),
+    status: () => (sidecar ? sidecar.status() : 'loading'),
+    baseUrl: () => (sidecar ? sidecar.baseUrl() : 'http://127.0.0.1:0')
+  })
   registerScoringHandlers()
+
+  pendingSidecar.catch((error) => console.error(`[asr-sidecar] ${error.message}`))
 
   createWindow()
 
@@ -67,6 +106,10 @@ app.whenReady().then(() => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('will-quit', () => {
+  if (sidecar) sidecar.stop()
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

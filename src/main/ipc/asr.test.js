@@ -10,21 +10,38 @@ vi.mock('electron', () => ({
 
 const { registerAsrHandlers } = await import('./asr.js')
 
+function fakeSidecar({ ready = false, status = 'loading' } = {}) {
+  return {
+    isReady: () => ready,
+    status: () => status,
+    baseUrl: () => 'http://127.0.0.1:9999'
+  }
+}
+
+const PAYLOAD = { audioBuffer: new ArrayBuffer(8), mimeType: 'audio/webm', language: 'th' }
+
 describe('registerAsrHandlers', () => {
   beforeEach(() => {
     handlers.clear()
     delete process.env.OPENAI_API_KEY
+    delete process.env.MOCA_ALLOW_CLOUD_FALLBACK
   })
 
-  it('registers without throwing when OPENAI_API_KEY is missing', () => {
-    expect(() => registerAsrHandlers()).not.toThrow()
+  it('registers both channels without throwing when nothing is configured', () => {
+    expect(() => registerAsrHandlers(fakeSidecar())).not.toThrow()
     expect(handlers.has('asr:transcribe')).toBe(true)
+    expect(handlers.has('asr:status')).toBe(true)
   })
 
-  it('surfaces the missing-key error only when transcribe is actually invoked', async () => {
-    registerAsrHandlers()
-    await expect(
-      handlers.get('asr:transcribe')({}, { audioBuffer: new ArrayBuffer(8), mimeType: 'audio/webm', language: 'th' })
-    ).rejects.toThrow('OPENAI_API_KEY is not set')
+  it('reports the sidecar status through asr:status', async () => {
+    registerAsrHandlers(fakeSidecar({ status: 'ready' }))
+    await expect(handlers.get('asr:status')({})).resolves.toBe('ready')
+  })
+
+  it('surfaces both failure causes when local is down and no API key is set', async () => {
+    registerAsrHandlers(fakeSidecar({ ready: false }))
+    await expect(handlers.get('asr:transcribe')({}, PAYLOAD)).rejects.toThrow(
+      'OPENAI_API_KEY is not set'
+    )
   })
 })

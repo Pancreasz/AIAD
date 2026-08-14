@@ -6,7 +6,8 @@ const api = {
   transcribeAudio: (audioBuffer, mimeType, language) =>
     ipcRenderer.invoke('asr:transcribe', { audioBuffer, mimeType, language }),
   scoreItem: (subtestId, transcript, context) =>
-    ipcRenderer.invoke('scoring:score-item', { subtestId, transcript, context })
+    ipcRenderer.invoke('scoring:score-item', { subtestId, transcript, context }),
+  getAsrStatus: () => ipcRenderer.invoke('asr:status')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
