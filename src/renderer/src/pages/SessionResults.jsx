@@ -14,6 +14,11 @@ function recallInterval(results) {
   const registration = results.find((r) => r.subtestId === 'memory-registration-2')
   const recall = results.find((r) => r.subtestId === 'delayed-recall')
   if (!registration?.completedAt || !recall?.completedAt) return null
+  // A skipped subtest was never administered, so its completedAt marks the
+  // moment it was skipped, not a real measurement. Diffing it against the
+  // other anchor would fabricate an interval for a recall (or registration)
+  // that never happened.
+  if (registration.skipped || recall.skipped) return null
 
   const elapsedMs = recall.completedAt - registration.completedAt
   return { text: formatGap(elapsedMs), short: elapsedMs < PROTOCOL_RECALL_GAP_MS }

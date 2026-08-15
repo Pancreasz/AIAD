@@ -119,4 +119,51 @@ describe('SessionResults skipped subtests', () => {
     render(<SessionResults results={[scored]} subtests={subtests} />)
     expect(screen.queryByText(/subtest skipped/)).not.toBeInTheDocument()
   })
+
+  it('does not fabricate a recall interval when the recall was skipped', () => {
+    const registration = {
+      subtestId: 'memory-registration-2',
+      score: 0,
+      maxScore: 0,
+      recalledCount: 3,
+      engine: 'local',
+      completedAt: 1_000_000
+    }
+    const skippedRecall = {
+      subtestId: 'delayed-recall',
+      skipped: true,
+      score: 0,
+      maxScore: 0,
+      completedAt: 1_000_000 + 160_000
+    }
+    render(<SessionResults results={[registration, skippedRecall]} subtests={subtests} />)
+    expect(screen.queryByText(/Delayed recall after/)).not.toBeInTheDocument()
+  })
+
+  it('does not fabricate a recall interval when registration was skipped', () => {
+    const skippedRegistration = {
+      subtestId: 'memory-registration-2',
+      skipped: true,
+      score: 0,
+      maxScore: 0,
+      completedAt: 1_000_000
+    }
+    const recall = {
+      subtestId: 'delayed-recall',
+      score: 4,
+      maxScore: 5,
+      recalledCount: 4,
+      engine: 'local',
+      completedAt: 1_000_000 + 160_000
+    }
+    render(<SessionResults results={[skippedRegistration, recall]} subtests={subtests} />)
+    expect(screen.queryByText(/Delayed recall after/)).not.toBeInTheDocument()
+  })
+
+  it('adds a skipped row to neither side of the total', () => {
+    const recall = { subtestId: 'delayed-recall', score: 4, maxScore: 5 }
+    const orientation = { subtestId: 'orientation', score: 6, maxScore: 6 }
+    render(<SessionResults results={[skipped, recall, orientation]} subtests={subtests} />)
+    expect(screen.getByText('Total: 10 / 11')).toBeInTheDocument()
+  })
 })
