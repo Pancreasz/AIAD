@@ -84,6 +84,29 @@ export function useSubtestSession(
     setPhase('instruction')
   }, [])
 
+  // A skipped subtest was never administered, so it scores nothing rather
+  // than scoring 0 -- 0 would assert the patient failed. maxScore 0 keeps it
+  // out of both sides of the total.
+  const skipSubtest = useCallback(() => {
+    setError(null)
+    setResults((prev) => [
+      ...prev,
+      {
+        subtestId: currentSubtest.id,
+        skipped: true,
+        score: 0,
+        maxScore: 0,
+        completedAt: Date.now()
+      }
+    ])
+    if (index + 1 < subtests.length) {
+      setIndex((prev) => prev + 1)
+      setPhase('instruction')
+    } else {
+      setPhase('done')
+    }
+  }, [currentSubtest, index, subtests.length])
+
   return {
     currentSubtest,
     phase,
@@ -91,6 +114,7 @@ export function useSubtestSession(
     error,
     beginRecording,
     finishRecording,
-    retryRecording
+    retryRecording,
+    skipSubtest
   }
 }

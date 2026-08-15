@@ -23,6 +23,7 @@ export function SessionResults({ results, subtests }) {
   const total = results.reduce((sum, r) => sum + r.score, 0)
   const maxTotal = results.reduce((sum, r) => sum + r.maxScore, 0)
   const interval = recallInterval(results)
+  const skippedCount = results.filter((r) => r.skipped).length
 
   return (
     <div className="session-results">
@@ -45,7 +46,11 @@ export function SessionResults({ results, subtests }) {
               <tr key={r.subtestId}>
                 <td>{subtest ? subtest.section : r.subtestId}</td>
                 <td>
-                  {unscored ? `${r.recalledCount} of 5 recalled` : `${r.score} / ${r.maxScore}`}
+                  {r.skipped
+                    ? 'skipped'
+                    : unscored
+                      ? `${r.recalledCount} of 5 recalled`
+                      : `${r.score} / ${r.maxScore}`}
                 </td>
                 <td>{r.engine ?? '—'}</td>
               </tr>
@@ -56,6 +61,12 @@ export function SessionResults({ results, subtests }) {
       <p className="total">
         Total: {total} / {maxTotal}
       </p>
+      {skippedCount > 0 && (
+        <p className="skipped-note">
+          {skippedCount} subtest{skippedCount === 1 ? '' : 's'} skipped — this total is not
+          comparable to the full 30-point scale
+        </p>
+      )}
       {interval && (
         <p className="recall-interval">
           Delayed recall after {interval.text}

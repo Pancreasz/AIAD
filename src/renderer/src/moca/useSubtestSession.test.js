@@ -206,3 +206,60 @@ describe('useSubtestSession stimulus playback', () => {
     expect(completedAt).toBeGreaterThanOrEqual(before)
   })
 })
+
+describe('useSubtestSession skipping', () => {
+  const twoSubtests = [
+    { id: 'digit-span-forward', scorerId: 'digit-span-forward', audio: 'digits.mp3' },
+    { id: 'orientation', scorerId: 'orientation' }
+  ]
+
+  it('records the subtest as skipped and advances past it', async () => {
+    const deps = setup()
+    deps.playAudio.mockRejectedValue(new Error('Failed to play stimulus audio: digits.mp3'))
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+    expect(result.current.phase).toBe('error')
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(result.current.currentSubtest.id).toBe('orientation')
+    expect(result.current.phase).toBe('instruction')
+    expect(result.current.error).toBeNull()
+    expect(result.current.results).toHaveLength(1)
+    expect(result.current.results[0]).toMatchObject({
+      subtestId: 'digit-span-forward',
+      skipped: true,
+      score: 0,
+      maxScore: 0
+    })
+  })
+
+  it('finishes the session when the last subtest is skipped', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession([twoSubtests[1]], deps))
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(result.current.phase).toBe('done')
+    expect(result.current.results).toHaveLength(1)
+  })
+
+  it('stamps a skipped result with completedAt like any other result', async () => {
+    const deps = setup()
+    const before = Date.now()
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(result.current.results[0].completedAt).toBeGreaterThanOrEqual(before)
+  })
+})

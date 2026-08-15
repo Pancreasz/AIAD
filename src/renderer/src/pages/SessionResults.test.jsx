@@ -94,3 +94,29 @@ describe('SessionResults memory rows and recall interval', () => {
     expect(screen.queryByText(/under the 5 minute/)).not.toBeInTheDocument()
   })
 })
+
+describe('SessionResults skipped subtests', () => {
+  const skipped = {
+    subtestId: 'naming',
+    skipped: true,
+    score: 0,
+    maxScore: 0,
+    completedAt: 1_000_000
+  }
+  const scored = { subtestId: 'orientation', score: 6, maxScore: 6, engine: 'local' }
+
+  it('labels a skipped row rather than showing a score', () => {
+    render(<SessionResults results={[skipped]} subtests={subtests} />)
+    expect(screen.getByText('skipped')).toBeInTheDocument()
+  })
+
+  it('warns that the total is incomplete when anything was skipped', () => {
+    render(<SessionResults results={[skipped, scored]} subtests={subtests} />)
+    expect(screen.getByText(/1 subtest skipped/)).toBeInTheDocument()
+  })
+
+  it('says nothing about skipping when every subtest ran', () => {
+    render(<SessionResults results={[scored]} subtests={subtests} />)
+    expect(screen.queryByText(/subtest skipped/)).not.toBeInTheDocument()
+  })
+})

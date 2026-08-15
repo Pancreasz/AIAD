@@ -29,7 +29,8 @@ export function SessionRunner() {
     error,
     beginRecording,
     finishRecording,
-    retryRecording
+    retryRecording,
+    skipSubtest
   } = useSubtestSession(
     SUBTESTS,
     {
@@ -69,6 +70,7 @@ export function SessionRunner() {
         <h2>{currentSubtest.section}</h2>
         <p style={{ whiteSpace: 'pre-wrap' }}>{error}</p>
         <button onClick={retryRecording}>Retry</button>
+        <button onClick={skipSubtest}>Skip this subtest</button>
       </div>
     )
   }
