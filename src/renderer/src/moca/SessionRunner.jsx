@@ -95,7 +95,15 @@ export function SessionRunner() {
       <p>{currentSubtest.instructionTextEn}</p>
       <p lang="th">{currentSubtest.instructionTextTh}</p>
       {phase === 'instruction' && <button onClick={beginRecording}>Start</button>}
-      {phase === 'stimulus' && <p>Listen…</p>}
+      {phase === 'stimulus' && (
+        <>
+          <p>Listen…</p>
+          {/* A media element that stalls without erroring never settles the
+              play() promise, leaving phase stuck here forever. Skip is the
+              escape hatch -- the same one the error phase already offers. */}
+          <button onClick={skipSubtest}>Skip this subtest</button>
+        </>
+      )}
       {phase === 'recording' && <button onClick={finishRecording}>Stop &amp; Score</button>}
       {phase === 'scoring' && <p>Scoring...</p>}
     </div>
