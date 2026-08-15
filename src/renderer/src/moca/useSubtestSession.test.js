@@ -8,14 +8,20 @@ const subtests = [
 ]
 
 function setup() {
+  const callOrder = []
   const fakeRecorder = {
-    start: vi.fn().mockResolvedValue(undefined),
+    start: vi.fn().mockImplementation(async () => {
+      callOrder.push('recorder.start')
+    }),
     stop: vi.fn().mockResolvedValue(new Blob(['x']))
   }
   const createRecorder = vi.fn(() => fakeRecorder)
+  const playAudio = vi.fn().mockImplementation(async () => {
+    callOrder.push('playAudio')
+  })
   const transcribeAudio = vi.fn().mockResolvedValue({ text: 'สิงโต แรด อูฐ', engine: 'local' })
   const scoreItem = vi.fn().mockResolvedValue({ score: 3, maxScore: 3 })
-  return { fakeRecorder, createRecorder, transcribeAudio, scoreItem }
+  return { fakeRecorder, createRecorder, playAudio, transcribeAudio, scoreItem, callOrder }
 }
 
 describe('useSubtestSession', () => {
@@ -128,5 +134,65 @@ describe('useSubtestSession', () => {
     expect(result.current.error).toBeNull()
     expect(result.current.currentSubtest.id).toBe('naming')
     expect(result.current.results).toHaveLength(0)
+  })
+})
+
+describe('useSubtestSession stimulus playback', () => {
+  const withAudio = [{ id: 'digit-span-forward', scorerId: 'digit-span-forward', audio: 'digits.mp3' }]
+  const withoutAudio = [{ id: 'orientation', scorerId: 'orientation' }]
+
+  it('plays the stimulus to completion BEFORE opening the microphone', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(withAudio, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+
+    expect(deps.playAudio).toHaveBeenCalledWith('digits.mp3')
+    // The guarantee: if these ever invert, the mic records the prompt and the
+    // ASR transcribes the app's own voice.
+    expect(deps.callOrder).toEqual(['playAudio', 'recorder.start'])
+  })
+
+  it('skips playback entirely for subtests with no audio', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(withoutAudio, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+
+    expect(deps.playAudio).not.toHaveBeenCalled()
+    expect(result.current.phase).toBe('recording')
+  })
+
+  it('routes a playback failure to the error phase rather than recording anyway', async () => {
+    const deps = setup()
+    deps.playAudio.mockRejectedValue(new Error('Failed to play stimulus audio: digits.mp3'))
+    const { result } = renderHook(() => useSubtestSession(withAudio, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(result.current.error).toContain('Failed to play stimulus audio')
+    expect(deps.fakeRecorder.start).not.toHaveBeenCalled()
+  })
+
+  it('stamps each result with the time it completed', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(withoutAudio, deps))
+    const before = Date.now()
+
+    await act(async () => {
+      await result.current.beginRecording()
+      await result.current.finishRecording()
+    })
+
+    const { completedAt } = result.current.results[0]
+    expect(typeof completedAt).toBe('number')
+    expect(completedAt).toBeGreaterThanOrEqual(before)
   })
 })

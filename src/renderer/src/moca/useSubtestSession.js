@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 
 export function useSubtestSession(
   subtests,
-  { transcribeAudio, scoreItem, createRecorder },
+  { transcribeAudio, scoreItem, createRecorder, playAudio },
   sessionContext = {}
 ) {
   const [index, setIndex] = useState(0)
@@ -14,10 +14,23 @@ export function useSubtestSession(
   const currentSubtest = subtests[index]
 
   const beginRecording = useCallback(async () => {
-    recorderRef.current = createRecorder()
-    await recorderRef.current.start()
-    setPhase('recording')
-  }, [createRecorder])
+    try {
+      // The mic must not open until the stimulus has finished. If these
+      // overlap, the recording captures the prompt and the ASR transcribes
+      // the app's own voice -- the subtest would appear to pass while
+      // measuring nothing.
+      if (currentSubtest.audio) {
+        setPhase('stimulus')
+        await playAudio(currentSubtest.audio)
+      }
+      recorderRef.current = createRecorder()
+      await recorderRef.current.start()
+      setPhase('recording')
+    } catch (err) {
+      setError(err.message)
+      setPhase('error')
+    }
+  }, [currentSubtest, createRecorder, playAudio])
 
   const finishRecording = useCallback(async () => {
     setPhase('scoring')
@@ -45,7 +58,13 @@ export function useSubtestSession(
 
       setResults((prev) => [
         ...prev,
-        { subtestId: currentSubtest.id, transcript, engine, ...scoreResult }
+        {
+          subtestId: currentSubtest.id,
+          transcript,
+          engine,
+          completedAt: Date.now(),
+          ...scoreResult
+        }
       ])
 
       if (index + 1 < subtests.length) {
