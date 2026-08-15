@@ -16,9 +16,18 @@ function setup() {
     stop: vi.fn().mockResolvedValue(new Blob(['x']))
   }
   const createRecorder = vi.fn(() => fakeRecorder)
-  const playAudio = vi.fn().mockImplementation(async () => {
-    callOrder.push('playAudio')
-  })
+  const playAudio = vi.fn().mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        // Pushes on COMPLETION, not invocation. The recorder fake pushes on
+        // invocation, so a missing `await` or a concurrent Promise.all would
+        // log recorder.start first and fail this test.
+        setTimeout(() => {
+          callOrder.push('playAudio')
+          resolve()
+        }, 5)
+      })
+  )
   const transcribeAudio = vi.fn().mockResolvedValue({ text: 'สิงโต แรด อูฐ', engine: 'local' })
   const scoreItem = vi.fn().mockResolvedValue({ score: 3, maxScore: 3 })
   return { fakeRecorder, createRecorder, playAudio, transcribeAudio, scoreItem, callOrder }
@@ -153,6 +162,7 @@ describe('useSubtestSession stimulus playback', () => {
     // The guarantee: if these ever invert, the mic records the prompt and the
     // ASR transcribes the app's own voice.
     expect(deps.callOrder).toEqual(['playAudio', 'recorder.start'])
+    expect(result.current.phase).toBe('recording')
   })
 
   it('skips playback entirely for subtests with no audio', async () => {
