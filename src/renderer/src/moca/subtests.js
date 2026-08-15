@@ -5,9 +5,16 @@ import camelImage from '../assets/moca/images/camel.png'
 // Served from src/renderer/public, so these are URL paths rather than imports.
 // See this task's note: an import of a not-yet-recorded file fails the build,
 // while a missing file here is a runtime error the app surfaces with Retry.
-const MEMORY_WORDS_AUDIO = '/moca/audio/memory-words.mp3'
-const DIGITS_FORWARD_AUDIO = '/moca/audio/digits-forward.mp3'
-const DIGITS_BACKWARD_AUDIO = '/moca/audio/digits-backward.mp3'
+//
+// Deliberately relative (no leading slash). In dev the renderer is served
+// over HTTP from the server root, where a root-absolute path also happens to
+// work -- but production loads via loadFile(), i.e. the file:// protocol,
+// where a root-absolute path resolves against the drive root
+// (file:///C:/moca/audio/...) rather than the app bundle. A relative path
+// resolves against the current document in both cases.
+const MEMORY_WORDS_AUDIO = 'moca/audio/memory-words.mp3'
+const DIGITS_FORWARD_AUDIO = 'moca/audio/digits-forward.mp3'
+const DIGITS_BACKWARD_AUDIO = 'moca/audio/digits-backward.mp3'
 
 export const SUBTESTS = [
   {
