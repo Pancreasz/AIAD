@@ -22,6 +22,19 @@ describe('scoreItem', () => {
     expect(result.maxScore).toBe(6)
   })
 
+  it('dispatches to the memory registration scorer, which never scores points', () => {
+    const result = scoreItem('memory-registration', 'หน้า ผ้าไหม วัด มะลิ สีแดง', {})
+    expect(result.score).toBe(0)
+    expect(result.maxScore).toBe(0)
+    expect(result.recalledCount).toBe(5)
+  })
+
+  it('dispatches to the delayed recall scorer, which scores out of 5', () => {
+    const result = scoreItem('delayed-recall', 'หน้า วัด สีแดง', {})
+    expect(result.score).toBe(3)
+    expect(result.maxScore).toBe(5)
+  })
+
   it('throws for an unknown subtest id', () => {
     expect(() => scoreItem('unknown-subtest', 'text', {})).toThrow(
       'No scorer registered for subtest "unknown-subtest"'
