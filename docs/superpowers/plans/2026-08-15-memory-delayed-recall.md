@@ -1178,7 +1178,7 @@ With the audio files still absent, run `npm run dev` and start the first Memory 
 
 Expected: the subtest enters the error phase showing `Failed to play stimulus audio: ...` with **Retry and Skip** buttons — **not** a silent skip, and **not** a recording that scores 0. This confirms a missing stimulus can never be mistaken for a patient who said nothing.
 
-Then press **Skip** and confirm the session advances to the next subtest. Skip past every audio-dependent subtest and reach Orientation, confirming the results table marks the skipped rows `skipped` and carries the "not comparable to the full 30-point scale" note. This is the path you will use for demos until the recordings exist.
+Then press **Skip** and confirm the session advances to the next subtest. Skip past every audio-dependent subtest and reach Orientation, confirming the results table marks the skipped rows `skipped` and carries the "not administered — this total is incomplete" note. This is the path you will use for demos until the recordings exist.
 
 Note this task runs **after Task 9**, which adds that Skip control — the numbering is historical, not an ordering.
 
