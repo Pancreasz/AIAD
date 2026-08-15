@@ -85,6 +85,28 @@ A missing or undecodable audio file means the patient cannot answer. It sets `ph
 
 Chromium blocks autoplay outside a user gesture. Playback here is triggered by the Start click, so it is inside a gesture. This becomes relevant if subtests ever auto-advance — the countdown/timer work will need to account for it.
 
+### Skipping a subtest
+
+The `error` phase's Retry button alone is not an escape hatch: if the audio file is genuinely missing, or a media element stalls without ever firing `error`, Retry re-attempts forever and the session cannot proceed. `useSubtestSession` exposes `skipSubtest()`, rendered as a Skip button wherever a subtest could otherwise strand the session — the `error` phase, and the `stimulus` phase (a stall there never rejects, so it never even reaches `error`).
+
+`skipSubtest()` pushes a result with `skipped: true, score: 0, maxScore: 0, completedAt: Date.now()` and advances to the next subtest (or `done` if it was the last).
+
+**Skip is not zero.** A score of 0 asserts the patient attempted the subtest and failed it. A skip asserts the subtest was never administered — clinically a different claim. Giving a skipped row `maxScore: 0` keeps it out of both sides of the total for the same reason an unscored registration row is: a subtest that never ran must not silently degrade the denominator into looking like a worse — but comparable — score.
+
+`SessionResults` renders a skipped row's score cell as `skipped`, and when the session contains one or more skipped subtests, appends a note beneath the total naming how many subtests were not administered and that the total is therefore incomplete (worded against the subtests actually administered, not against the eventual 30-point instrument, since the currently-implemented set does not total 30 either).
+
+A skipped memory-registration trial also matters to delayed recall: see "Registration and Delayed Recall Are Coupled" below.
+
+---
+
+## Registration and Delayed Recall Are Coupled
+
+A delayed-recall score only measures something if the patient was actually played the five words at least once. `SessionResults` treats registration as having *happened* when at least one `memory-registration-*` result exists and is not `skipped`. If both registration trials were skipped, a `delayed-recall` result is still produced (the subtest itself runs and is scored normally by `scoreDelayedRecall`) but is **unscorable**: the app renders `not scorable — words never presented` in place of the `N / 5` score and excludes it from both sides of the total, the same treatment a skipped row gets.
+
+If even one registration trial ran, the recall score stands as-is — one exposure instead of two is a norms deviation worth noting during interpretation, but the patient did encode the words, so the number means something.
+
+This is independent of the recall-interval calculation, which already goes blank (rather than misleading) whenever `memory-registration-2` or `delayed-recall` is missing or skipped — this section covers the *score*, not the *interval*, and the two can diverge (e.g. trial 1 skipped, trial 2 ran: the interval still anchors to trial 2 and renders normally, and the score also stands).
+
 ---
 
 ## Scoring
@@ -175,7 +197,9 @@ Recorded by the user; the app cannot proceed to a real run without them.
 | `digits-forward.mp3` | 2 – 1 – 8 – 5 – 4 (สอง หนึ่ง แปด ห้า สี่) |
 | `digits-backward.mp3` | 7 – 4 – 2 (เจ็ด สี่ สอง) — the patient answers `247`; record the prompt, not the answer |
 
-All in `src/renderer/src/assets/moca/audio/`. Digit Span requires one digit per second with no grouping or rhythm; chunking makes the span easier and breaks the norm.
+All in `src/renderer/public/moca/audio/` — the Vite public directory, not `src/renderer/src/assets/`. Audio is referenced by URL rather than imported: an import of a not-yet-recorded file would fail the build, while a missing file under `public/` is a runtime 404 the app surfaces with Retry/Skip. Digit Span requires one digit per second with no grouping or rhythm; chunking makes the span easier and breaks the norm.
+
+The path constants in `subtests.js` are **relative** (`moca/audio/memory-words.mp3`, no leading slash), not root-absolute. In dev the renderer is served over HTTP from the server root, where a root-absolute path also happens to resolve correctly — but the packaged app loads via `loadFile()`, i.e. the `file://` protocol, where a root-absolute path resolves against the drive root rather than the app bundle. A relative path resolves against the current document under both dev and `file://`, so it must stay relative.
 
 **Implementation does not block on these.** Every unit test injects a fake player. The files are needed only for a real end-to-end run.
 

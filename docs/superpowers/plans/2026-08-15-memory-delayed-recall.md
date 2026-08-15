@@ -1162,6 +1162,16 @@ This is the only step that exercises real audio playback and real speech. It req
 Run: `npm run test:all; echo "exit=$?"`
 Expected: Vitest passes, then pytest passes, exit=0.
 
+- [ ] **Step 1a: Run the packaged build and confirm stimulus audio still plays**
+
+`npm run dev` serves the renderer over HTTP, where a root-absolute audio path (`/moca/audio/...`) happens to resolve correctly even if it is wrong. That masks a packaging bug: the production app loads via `loadFile()` (the `file://` protocol), where a root-absolute path resolves against the drive root instead of the app bundle, so stimulus playback would 404 in a real install despite `npm run dev` looking fine.
+
+Run:
+```bash
+npm run build
+```
+Then launch the built app from `out/` (not `npm run dev`) — e.g. run the built Electron executable directly, or use `npx electron .` pointed at the build output per this project's packaging setup. Start Memory trial 1 and confirm the stimulus actually plays (you hear it, or — pre-recording — you get the expected `error`/`Skip` path rather than a silently different failure than the dev-server run produced). If playback 404s here while `npm run dev` played fine, the audio path constants in `subtests.js` are root-absolute and must be made relative before this task can be considered complete.
+
 - [ ] **Step 2: Verify the failure path before adding audio**
 
 With the audio files still absent, run `npm run dev` and start the first Memory trial.
