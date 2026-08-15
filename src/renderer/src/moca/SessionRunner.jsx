@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSubtestSession } from './useSubtestSession.js'
 import { createAudioRecorder } from './AudioRecorder.js'
+import { createAudioPlayer } from './AudioPlayer.js'
 import { SUBTESTS } from './subtests.js'
 import { SessionResults } from '../pages/SessionResults.jsx'
 
@@ -15,6 +16,10 @@ const ASR_LABELS = {
   unavailable: 'unavailable — using cloud fallback',
   stopped: 'stopped'
 }
+
+// Created once at module scope: it holds no state between calls, and a new
+// instance per render would be pointless churn.
+const audioPlayer = createAudioPlayer()
 
 export function SessionRunner() {
   const {
@@ -32,7 +37,8 @@ export function SessionRunner() {
         window.api.transcribeAudio(buffer, mimeType, language),
       scoreItem: (subtestId, transcript, context) =>
         window.api.scoreItem(subtestId, transcript, context),
-      createRecorder: createAudioRecorder
+      createRecorder: createAudioRecorder,
+      playAudio: (src) => audioPlayer.play(src)
     },
     SESSION_CONTEXT
   )
@@ -87,6 +93,7 @@ export function SessionRunner() {
       <p>{currentSubtest.instructionTextEn}</p>
       <p lang="th">{currentSubtest.instructionTextTh}</p>
       {phase === 'instruction' && <button onClick={beginRecording}>Start</button>}
+      {phase === 'stimulus' && <p>Listen…</p>}
       {phase === 'recording' && <button onClick={finishRecording}>Stop &amp; Score</button>}
       {phase === 'scoring' && <p>Scoring...</p>}
     </div>
