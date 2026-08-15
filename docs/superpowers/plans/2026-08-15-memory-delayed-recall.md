@@ -18,7 +18,7 @@
 - Registration and delayed recall must check an identical word list. They share one constant in one file so they cannot drift.
 - Delayed recall has **no** audio — the patient recalls unprompted.
 - The recall interval is **measured and displayed, never enforced**. No blocking wait screen.
-- Playback failure routes to the existing `error` phase with Retry. Never silently skip a subtest, which would score 0 for something never administered.
+- Playback failure routes to the existing `error` phase with Retry. Never *silently* skip a subtest, which would score 0 for something never administered. Task 9 adds an explicit, operator-initiated Skip that records the subtest as not-administered — that is a deliberate action with an honest record, not a silent fallthrough.
 - Do not modify any file under `src/main/asr/`, and do not modify `src/main/scoring/matchers.js`, `naming.js`, `digitSpan.js`, or `orientation.js`.
 - Full suite must exit 0. A passing assertion count with `Errors 1 error` is a failure — check the exit code.
 
@@ -916,6 +916,231 @@ git commit -m "feat: report memory registration counts and the recall interval"
 
 ---
 
+### Task 9: Skip control for the error phase
+
+**Files:**
+- Modify: `src/renderer/src/moca/useSubtestSession.js`
+- Modify: `src/renderer/src/moca/useSubtestSession.test.js`
+- Modify: `src/renderer/src/moca/SessionRunner.jsx`
+- Modify: `src/renderer/src/pages/SessionResults.jsx`
+- Modify: `src/renderer/src/pages/SessionResults.test.jsx`
+
+**Interfaces:**
+- Consumes: the `error` phase and `retryRecording` (existing), `completedAt` on results (Task 5).
+- Produces: `skipSubtest()` from the hook, and `skipped: true` entries in `results` — rendered by `SessionResults`.
+
+**Why this exists.** The `error` phase currently offers Retry only. Once Task 4 gives Memory and Digit Span `audio` fields pointing at files that may not exist yet, a failed playback becomes unrecoverable: Retry re-attempts the same missing file forever and the session cannot reach the subtests after it. A Skip is also independently useful — an operator may need to abandon a subtest for reasons unrelated to audio, such as patient distress or equipment failure.
+
+**A skipped subtest scores nothing, and is not scored 0.** Scoring 0 asserts the patient failed; skipping asserts the subtest was never administered. Those are clinically different claims. A skipped entry therefore carries `maxScore: 0`, contributing to neither side of the total, and the results table says so — otherwise a session with skipped subtests would quietly report a total that looks comparable to the 30-point scale when it is not.
+
+- [ ] **Step 1: Write the failing hook test**
+
+In `src/renderer/src/moca/useSubtestSession.test.js`, add this `describe` block at the end of the file:
+```js
+describe('useSubtestSession skipping', () => {
+  const twoSubtests = [
+    { id: 'digit-span-forward', scorerId: 'digit-span-forward', audio: 'digits.mp3' },
+    { id: 'orientation', scorerId: 'orientation' }
+  ]
+
+  it('records the subtest as skipped and advances past it', async () => {
+    const deps = setup()
+    deps.playAudio.mockRejectedValue(new Error('Failed to play stimulus audio: digits.mp3'))
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+    expect(result.current.phase).toBe('error')
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(result.current.currentSubtest.id).toBe('orientation')
+    expect(result.current.phase).toBe('instruction')
+    expect(result.current.error).toBeNull()
+    expect(result.current.results).toHaveLength(1)
+    expect(result.current.results[0]).toMatchObject({
+      subtestId: 'digit-span-forward',
+      skipped: true,
+      score: 0,
+      maxScore: 0
+    })
+  })
+
+  it('finishes the session when the last subtest is skipped', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession([twoSubtests[1]], deps))
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(result.current.phase).toBe('done')
+    expect(result.current.results).toHaveLength(1)
+  })
+
+  it('stamps a skipped result with completedAt like any other result', async () => {
+    const deps = setup()
+    const before = Date.now()
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(result.current.results[0].completedAt).toBeGreaterThanOrEqual(before)
+  })
+})
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npx vitest run src/renderer/src/moca/useSubtestSession.test.js`
+Expected: FAIL — `result.current.skipSubtest` is not a function.
+
+- [ ] **Step 3: Add `skipSubtest` to the hook**
+
+In `src/renderer/src/moca/useSubtestSession.js`, add this callback immediately after `retryRecording`:
+```js
+  // A skipped subtest was never administered, so it scores nothing rather
+  // than scoring 0 -- 0 would assert the patient failed. maxScore 0 keeps it
+  // out of both sides of the total.
+  const skipSubtest = useCallback(() => {
+    setError(null)
+    setResults((prev) => [
+      ...prev,
+      {
+        subtestId: currentSubtest.id,
+        skipped: true,
+        score: 0,
+        maxScore: 0,
+        completedAt: Date.now()
+      }
+    ])
+    if (index + 1 < subtests.length) {
+      setIndex((prev) => prev + 1)
+      setPhase('instruction')
+    } else {
+      setPhase('done')
+    }
+  }, [currentSubtest, index, subtests.length])
+```
+
+Then add `skipSubtest` to the returned object, after `retryRecording`:
+```js
+    retryRecording,
+    skipSubtest
+```
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `npx vitest run src/renderer/src/moca/useSubtestSession.test.js`
+Expected: PASS.
+
+- [ ] **Step 5: Add the Skip button**
+
+In `src/renderer/src/moca/SessionRunner.jsx`, add `skipSubtest` to the values destructured from `useSubtestSession`, after `retryRecording`.
+
+Then in the `phase === 'error'` block, add a Skip button beside Retry:
+```jsx
+        <button onClick={retryRecording}>Retry</button>
+        <button onClick={skipSubtest}>Skip this subtest</button>
+```
+
+- [ ] **Step 6: Write the failing results tests**
+
+In `src/renderer/src/pages/SessionResults.test.jsx`, add this `describe` block at the end:
+```jsx
+describe('SessionResults skipped subtests', () => {
+  const skipped = {
+    subtestId: 'naming',
+    skipped: true,
+    score: 0,
+    maxScore: 0,
+    completedAt: 1_000_000
+  }
+  const scored = { subtestId: 'orientation', score: 6, maxScore: 6, engine: 'local' }
+
+  it('labels a skipped row rather than showing a score', () => {
+    render(<SessionResults results={[skipped]} subtests={subtests} />)
+    expect(screen.getByText('skipped')).toBeInTheDocument()
+  })
+
+  it('warns that the total is incomplete when anything was skipped', () => {
+    render(<SessionResults results={[skipped, scored]} subtests={subtests} />)
+    expect(screen.getByText(/1 subtest skipped/)).toBeInTheDocument()
+  })
+
+  it('says nothing about skipping when every subtest ran', () => {
+    render(<SessionResults results={[scored]} subtests={subtests} />)
+    expect(screen.queryByText(/subtest skipped/)).not.toBeInTheDocument()
+  })
+})
+```
+
+- [ ] **Step 7: Run the tests to verify they fail**
+
+Run: `npx vitest run src/renderer/src/pages/SessionResults.test.jsx`
+Expected: FAIL — skipped rows render `0 / 0` and there is no incompleteness note.
+
+- [ ] **Step 8: Render skipped rows and the incompleteness note**
+
+In `src/renderer/src/pages/SessionResults.jsx`, inside the `results.map` callback, change the score cell so a skipped row is labelled. Replace:
+```jsx
+                <td>
+                  {unscored ? `${r.recalledCount} of 5 recalled` : `${r.score} / ${r.maxScore}`}
+                </td>
+```
+with:
+```jsx
+                <td>
+                  {r.skipped
+                    ? 'skipped'
+                    : unscored
+                      ? `${r.recalledCount} of 5 recalled`
+                      : `${r.score} / ${r.maxScore}`}
+                </td>
+```
+
+Then add this above the `return`, beside the existing `interval` calculation:
+```jsx
+  const skippedCount = results.filter((r) => r.skipped).length
+```
+
+And add this immediately after the `<p className="total">` element:
+```jsx
+      {skippedCount > 0 && (
+        <p className="skipped-note">
+          {skippedCount} subtest{skippedCount === 1 ? '' : 's'} skipped — this total is not
+          comparable to the full 30-point scale
+        </p>
+      )}
+```
+
+- [ ] **Step 9: Run the tests to verify they pass**
+
+Run: `npx vitest run src/renderer/src/pages/SessionResults.test.jsx`
+Expected: PASS.
+
+- [ ] **Step 10: Run the full suite and build**
+
+Run: `npm test; echo "exit=$?"`
+Expected: exit=0, no `Errors` line.
+
+Run: `npm run build; echo "exit=$?"`
+Expected: exit=0.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add src/renderer/src/moca/useSubtestSession.js src/renderer/src/moca/useSubtestSession.test.js src/renderer/src/moca/SessionRunner.jsx src/renderer/src/pages/SessionResults.jsx src/renderer/src/pages/SessionResults.test.jsx
+git commit -m "feat: let the operator skip a subtest that cannot be administered"
+```
+
+---
+
 ### Task 8: Manual end-to-end verification
 
 **Files:** none — this task changes no code.
@@ -941,7 +1166,11 @@ Expected: Vitest passes, then pytest passes, exit=0.
 
 With the audio files still absent, run `npm run dev` and start the first Memory trial.
 
-Expected: the subtest enters the error phase showing `Failed to play stimulus audio: ...` with a Retry button — **not** a silent skip, and **not** a recording that scores 0. This confirms a missing stimulus can never be mistaken for a patient who said nothing.
+Expected: the subtest enters the error phase showing `Failed to play stimulus audio: ...` with **Retry and Skip** buttons — **not** a silent skip, and **not** a recording that scores 0. This confirms a missing stimulus can never be mistaken for a patient who said nothing.
+
+Then press **Skip** and confirm the session advances to the next subtest. Skip past every audio-dependent subtest and reach Orientation, confirming the results table marks the skipped rows `skipped` and carries the "not comparable to the full 30-point scale" note. This is the path you will use for demos until the recordings exist.
+
+Note this task runs **after Task 9**, which adds that Skip control — the numbering is historical, not an ordering.
 
 - [ ] **Step 3: Add the audio files and verify playback ordering**
 
