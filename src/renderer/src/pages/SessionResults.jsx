@@ -1,6 +1,28 @@
+const PROTOCOL_RECALL_GAP_MS = 5 * 60 * 1000
+
+function formatGap(ms) {
+  const totalSeconds = Math.round(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}m ${seconds}s`
+}
+
+// MoCA expects roughly five minutes between the last registration trial and
+// delayed recall. We measure rather than enforce -- a blocking wait reads as a
+// hung app -- so the interval is displayed and flagged when it falls short.
+function recallInterval(results) {
+  const registration = results.find((r) => r.subtestId === 'memory-registration-2')
+  const recall = results.find((r) => r.subtestId === 'delayed-recall')
+  if (!registration?.completedAt || !recall?.completedAt) return null
+
+  const elapsedMs = recall.completedAt - registration.completedAt
+  return { text: formatGap(elapsedMs), short: elapsedMs < PROTOCOL_RECALL_GAP_MS }
+}
+
 export function SessionResults({ results, subtests }) {
   const total = results.reduce((sum, r) => sum + r.score, 0)
   const maxTotal = results.reduce((sum, r) => sum + r.maxScore, 0)
+  const interval = recallInterval(results)
 
   return (
     <div className="session-results">
@@ -16,11 +38,14 @@ export function SessionResults({ results, subtests }) {
         <tbody>
           {results.map((r) => {
             const subtest = subtests.find((s) => s.id === r.subtestId)
+            // MoCA awards no points for memory registration, so those rows
+            // report the count as information rather than as a score.
+            const unscored = r.maxScore === 0 && r.recalledCount !== undefined
             return (
               <tr key={r.subtestId}>
                 <td>{subtest ? subtest.section : r.subtestId}</td>
                 <td>
-                  {r.score} / {r.maxScore}
+                  {unscored ? `${r.recalledCount} of 5 recalled` : `${r.score} / ${r.maxScore}`}
                 </td>
                 <td>{r.engine ?? '—'}</td>
               </tr>
@@ -31,6 +56,12 @@ export function SessionResults({ results, subtests }) {
       <p className="total">
         Total: {total} / {maxTotal}
       </p>
+      {interval && (
+        <p className="recall-interval">
+          Delayed recall after {interval.text}
+          {interval.short && ' — under the 5 minute protocol interval, so this score is not comparable to published norms'}
+        </p>
+      )}
     </div>
   )
 }

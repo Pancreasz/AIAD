@@ -4,7 +4,9 @@ import { SessionResults } from './SessionResults.jsx'
 
 const subtests = [
   { id: 'naming', section: 'Naming' },
-  { id: 'orientation', section: 'Orientation' }
+  { id: 'orientation', section: 'Orientation' },
+  { id: 'memory-registration-2', section: 'Memory (trial 2)' },
+  { id: 'delayed-recall', section: 'Delayed Recall' }
 ]
 
 describe('SessionResults', () => {
@@ -38,5 +40,57 @@ describe('SessionResults', () => {
     render(<SessionResults results={results} subtests={subtests} />)
 
     expect(screen.getByText('—')).toBeInTheDocument()
+  })
+})
+
+describe('SessionResults memory rows and recall interval', () => {
+  const registration = {
+    subtestId: 'memory-registration-2',
+    score: 0,
+    maxScore: 0,
+    recalledCount: 3,
+    engine: 'local',
+    completedAt: 1_000_000
+  }
+  const recall = {
+    subtestId: 'delayed-recall',
+    score: 4,
+    maxScore: 5,
+    recalledCount: 4,
+    engine: 'local',
+    completedAt: 1_000_000 + 160_000 // 2m 40s later
+  }
+
+  it('shows the recalled count instead of a score for unscored rows', () => {
+    render(<SessionResults results={[registration]} subtests={subtests} />)
+    expect(screen.getByText('3 of 5 recalled')).toBeInTheDocument()
+  })
+
+  it('excludes unscored rows from the total', () => {
+    render(<SessionResults results={[registration, recall]} subtests={subtests} />)
+    // Only the recall contributes: 4 / 5, not 4 / 5 plus a 0 / 0 row.
+    expect(screen.getByText('Total: 4 / 5')).toBeInTheDocument()
+  })
+
+  it('reports how long after registration the recall happened', () => {
+    render(<SessionResults results={[registration, recall]} subtests={subtests} />)
+    expect(screen.getByText(/Delayed recall after 2m 40s/)).toBeInTheDocument()
+  })
+
+  it('warns when the interval is under the five minute protocol gap', () => {
+    render(<SessionResults results={[registration, recall]} subtests={subtests} />)
+    expect(screen.getByText(/under the 5 minute protocol interval/)).toBeInTheDocument()
+  })
+
+  it('omits the interval entirely when registration or recall is missing', () => {
+    render(<SessionResults results={[recall]} subtests={subtests} />)
+    expect(screen.queryByText(/Delayed recall after/)).not.toBeInTheDocument()
+  })
+
+  it('does not warn when the interval meets the protocol gap', () => {
+    const lateRecall = { ...recall, completedAt: 1_000_000 + 400_000 } // 6m 40s
+    render(<SessionResults results={[registration, lateRecall]} subtests={subtests} />)
+    expect(screen.getByText(/Delayed recall after 6m 40s/)).toBeInTheDocument()
+    expect(screen.queryByText(/under the 5 minute/)).not.toBeInTheDocument()
   })
 })
