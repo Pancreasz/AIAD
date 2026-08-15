@@ -127,4 +127,21 @@ def test_start_loading_populates_the_error_slot_when_the_loader_raises(monkeypat
 
     monkeypatch.setattr(asr_server, "load_model", boom)
     asr_server.start_loading().join(timeout=5)
-    assert asr_server._load_error == "kaboom"
+    assert asr_server._load_error == "RuntimeError: kaboom"
+
+
+def test_describe_load_failure_names_a_missing_ssl_cert_file(monkeypatch, tmp_path):
+    missing = tmp_path / "nope.pem"
+    monkeypatch.setenv("SSL_CERT_FILE", str(missing))
+    detail = asr_server.describe_load_failure(FileNotFoundError(2, "No such file or directory"))
+    assert "SSL_CERT_FILE points to a file that does not exist" in detail
+    assert str(missing) in detail
+
+
+def test_describe_load_failure_stays_quiet_when_ssl_cert_file_is_valid(monkeypatch, tmp_path):
+    real = tmp_path / "ca.pem"
+    real.write_text("x")
+    monkeypatch.setenv("SSL_CERT_FILE", str(real))
+    detail = asr_server.describe_load_failure(RuntimeError("boom"))
+    assert "SSL_CERT_FILE" not in detail
+    assert "RuntimeError: boom" in detail

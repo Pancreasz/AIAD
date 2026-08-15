@@ -28,6 +28,25 @@ def load_model():
     return WhisperModel(model_id, device="cpu", compute_type="int8")
 
 
+def describe_load_failure(exc):
+    """Turn a load exception into something diagnosable from /health alone.
+
+    A bare `str(exc)` loses too much: a stale SSL_CERT_FILE surfaces only as
+    "[Errno 2] No such file or directory" with no filename, which cost real
+    debugging time twice. Name the likely cause when we can detect it.
+    """
+    detail = f"{type(exc).__name__}: {exc}"
+
+    cert = os.environ.get("SSL_CERT_FILE")
+    if cert and not os.path.isfile(cert):
+        detail += (
+            f" | SSL_CERT_FILE points to a file that does not exist: {cert}"
+            " -- this breaks HTTPS during model resolution. Relaunch from a"
+            " shell that does not carry a stale conda SSL_CERT_FILE."
+        )
+    return detail
+
+
 def start_loading():
     """Load the model on a background thread so /health answers immediately."""
 
@@ -36,7 +55,7 @@ def start_loading():
         try:
             _model = load_model()
         except Exception as exc:  # noqa: BLE001 - surfaced verbatim via /health
-            _load_error = str(exc)
+            _load_error = describe_load_failure(exc)
 
     thread = threading.Thread(target=_work, daemon=True)
     thread.start()
