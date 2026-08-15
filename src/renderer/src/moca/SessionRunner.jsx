@@ -71,6 +71,19 @@ export function SessionRunner() {
     <div className="session-runner">
       <p className="asr-status">ASR: {ASR_LABELS[asrStatus] ?? asrStatus}</p>
       <h2>{currentSubtest.section}</h2>
+      {currentSubtest.images && (
+        <div className="subtest-images">
+          {currentSubtest.images.map((src, i) => (
+            <img
+              key={src}
+              src={src}
+              // Neutral on purpose — naming the animal here would give away
+              // the answer via screen readers or a broken-image fallback.
+              alt={`Animal ${i + 1} of ${currentSubtest.images.length}`}
+            />
+          ))}
+        </div>
+      )}
       <p>{currentSubtest.instructionTextEn}</p>
       <p lang="th">{currentSubtest.instructionTextTh}</p>
       {phase === 'instruction' && <button onClick={beginRecording}>Start</button>}

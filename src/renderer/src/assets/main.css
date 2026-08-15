@@ -161,3 +161,27 @@ code {
     display: none;
   }
 }
+
+.subtest-images {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 16px 0 24px;
+}
+
+.subtest-images img {
+  height: 180px;
+  width: auto;
+  max-width: 30vw;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+@media (max-width: 720px) {
+  .subtest-images img {
+    height: 120px;
+  }
+}

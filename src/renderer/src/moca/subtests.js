@@ -1,7 +1,16 @@
+import lionImage from '../assets/moca/images/lion.png'
+import rhinoImage from '../assets/moca/images/rhino.png'
+import camelImage from '../assets/moca/images/camel.png'
+
 export const SUBTESTS = [
   {
     id: 'naming',
     section: 'Naming',
+    // Order matters only for display. The alt text deliberately does NOT name
+    // the animal: it would hand the answer to a screen reader, and it renders
+    // as fallback text if an image fails to load, turning a naming test into
+    // a reading test.
+    images: [lionImage, rhinoImage, camelImage],
     instructionTextEn:
       'You will see three animals. After the countdown, say the name of all three animals without stopping.',
     instructionTextTh: 'คุณจะเห็นสัตว์สามชนิด หลังนับถอยหลัง ให้บอกชื่อสัตว์ทั้งสามโดยไม่หยุด',
