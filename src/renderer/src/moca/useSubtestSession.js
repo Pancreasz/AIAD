@@ -58,13 +58,10 @@ export function useSubtestSession(
 
       setResults((prev) => [
         ...prev,
-        {
-          subtestId: currentSubtest.id,
-          transcript,
-          engine,
-          completedAt: Date.now(),
-          ...scoreResult
-        }
+        // scoreResult spread first: the hook's own fields (subtestId,
+        // transcript, engine, completedAt) are authoritative and must not be
+        // overwritable by anything a scorer returns.
+        { ...scoreResult, subtestId: currentSubtest.id, transcript, engine, completedAt: Date.now() }
       ])
 
       if (index + 1 < subtests.length) {
