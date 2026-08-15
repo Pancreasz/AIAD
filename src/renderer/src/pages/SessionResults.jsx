@@ -7,6 +7,26 @@ function formatGap(ms) {
   return `${minutes}m ${seconds}s`
 }
 
+// Registration "happened" if at least one trial actually ran -- i.e. a
+// memory-registration result exists and was not skipped. If neither trial
+// qualifies, the patient was never played the five words, so a delayed-recall
+// score would measure nothing.
+function registrationHappened(results) {
+  return results.some(
+    (r) => typeof r.subtestId === 'string' && r.subtestId.startsWith('memory-registration') && !r.skipped
+  )
+}
+
+// A delayed-recall result is unscorable -- not merely low-scoring -- when
+// registration never happened. This is distinct from `skipped`: the recall
+// subtest itself ran and produced a transcript, but the number it produced
+// doesn't measure recall of anything, since nothing was ever presented to
+// recall. Excluded from both sides of the total for the same reason a
+// skipped row is.
+function isUnscorableRecall(result, results) {
+  return result.subtestId === 'delayed-recall' && !result.skipped && !registrationHappened(results)
+}
+
 // MoCA expects roughly five minutes between the last registration trial and
 // delayed recall. We measure rather than enforce -- a blocking wait reads as a
 // hung app -- so the interval is displayed and flagged when it falls short.
@@ -25,8 +45,14 @@ function recallInterval(results) {
 }
 
 export function SessionResults({ results, subtests }) {
-  const total = results.reduce((sum, r) => sum + r.score, 0)
-  const maxTotal = results.reduce((sum, r) => sum + r.maxScore, 0)
+  const total = results.reduce(
+    (sum, r) => (isUnscorableRecall(r, results) ? sum : sum + r.score),
+    0
+  )
+  const maxTotal = results.reduce(
+    (sum, r) => (isUnscorableRecall(r, results) ? sum : sum + r.maxScore),
+    0
+  )
   const interval = recallInterval(results)
   const skippedCount = results.filter((r) => r.skipped).length
 
@@ -47,15 +73,18 @@ export function SessionResults({ results, subtests }) {
             // MoCA awards no points for memory registration, so those rows
             // report the count as information rather than as a score.
             const unscored = r.maxScore === 0 && r.recalledCount !== undefined
+            const unscorableRecall = isUnscorableRecall(r, results)
             return (
               <tr key={r.subtestId}>
                 <td>{subtest ? subtest.section : r.subtestId}</td>
                 <td>
                   {r.skipped
                     ? 'skipped'
-                    : unscored
-                      ? `${r.recalledCount} of 5 recalled`
-                      : `${r.score} / ${r.maxScore}`}
+                    : unscorableRecall
+                      ? 'not scorable — words never presented'
+                      : unscored
+                        ? `${r.recalledCount} of 5 recalled`
+                        : `${r.score} / ${r.maxScore}`}
                 </td>
                 <td>{r.engine ?? '—'}</td>
               </tr>
@@ -68,8 +97,8 @@ export function SessionResults({ results, subtests }) {
       </p>
       {skippedCount > 0 && (
         <p className="skipped-note">
-          {skippedCount} subtest{skippedCount === 1 ? '' : 's'} skipped — this total is not
-          comparable to the full 30-point scale
+          {skippedCount} subtest{skippedCount === 1 ? '' : 's'} not administered — this total is
+          incomplete
         </p>
       )}
       {interval && (

@@ -5,6 +5,7 @@ import { SessionResults } from './SessionResults.jsx'
 const subtests = [
   { id: 'naming', section: 'Naming' },
   { id: 'orientation', section: 'Orientation' },
+  { id: 'memory-registration-1', section: 'Memory (trial 1)' },
   { id: 'memory-registration-2', section: 'Memory (trial 2)' },
   { id: 'delayed-recall', section: 'Delayed Recall' }
 ]
@@ -112,12 +113,13 @@ describe('SessionResults skipped subtests', () => {
 
   it('warns that the total is incomplete when anything was skipped', () => {
     render(<SessionResults results={[skipped, scored]} subtests={subtests} />)
-    expect(screen.getByText(/1 subtest skipped/)).toBeInTheDocument()
+    expect(screen.getByText(/1 subtest not administered/)).toBeInTheDocument()
+    expect(screen.getByText(/this total is incomplete/)).toBeInTheDocument()
   })
 
   it('says nothing about skipping when every subtest ran', () => {
     render(<SessionResults results={[scored]} subtests={subtests} />)
-    expect(screen.queryByText(/subtest skipped/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/subtest not administered/)).not.toBeInTheDocument()
   })
 
   it('does not fabricate a recall interval when the recall was skipped', () => {
@@ -161,9 +163,87 @@ describe('SessionResults skipped subtests', () => {
   })
 
   it('adds a skipped row to neither side of the total', () => {
+    // Registration ran (so the recall row is scorable and this test stays
+    // focused on the unrelated skipped-naming-row exclusion).
+    const registration = {
+      subtestId: 'memory-registration-2',
+      score: 0,
+      maxScore: 0,
+      recalledCount: 4,
+      engine: 'local'
+    }
     const recall = { subtestId: 'delayed-recall', score: 4, maxScore: 5 }
     const orientation = { subtestId: 'orientation', score: 6, maxScore: 6 }
-    render(<SessionResults results={[skipped, recall, orientation]} subtests={subtests} />)
+    render(
+      <SessionResults results={[skipped, registration, recall, orientation]} subtests={subtests} />
+    )
+    expect(screen.getByText('Total: 10 / 11')).toBeInTheDocument()
+  })
+})
+
+describe('SessionResults recall scorability', () => {
+  const skippedTrial1 = {
+    subtestId: 'memory-registration-1',
+    skipped: true,
+    score: 0,
+    maxScore: 0,
+    completedAt: 1_000_000
+  }
+  const skippedTrial2 = {
+    subtestId: 'memory-registration-2',
+    skipped: true,
+    score: 0,
+    maxScore: 0,
+    completedAt: 1_000_100
+  }
+  const recall = {
+    subtestId: 'delayed-recall',
+    score: 4,
+    maxScore: 5,
+    recalledCount: 4,
+    engine: 'local',
+    completedAt: 1_000_200
+  }
+  const orientation = { subtestId: 'orientation', score: 6, maxScore: 6, engine: 'local' }
+
+  it('marks recall not scorable when both registration trials were skipped', () => {
+    render(
+      <SessionResults
+        results={[skippedTrial1, skippedTrial2, recall, orientation]}
+        subtests={subtests}
+      />
+    )
+    expect(screen.getByText('not scorable — words never presented')).toBeInTheDocument()
+    expect(screen.queryByText('4 / 5')).not.toBeInTheDocument()
+  })
+
+  it('excludes the unscorable recall row from both sides of the total', () => {
+    render(
+      <SessionResults
+        results={[skippedTrial1, skippedTrial2, recall, orientation]}
+        subtests={subtests}
+      />
+    )
+    // Only orientation contributes: the recall's 4/5 must not be folded in,
+    // because the patient was never played the words.
+    expect(screen.getByText('Total: 6 / 6')).toBeInTheDocument()
+  })
+
+  it('scores recall normally when only one registration trial was skipped', () => {
+    const ranTrial2 = {
+      subtestId: 'memory-registration-2',
+      score: 0,
+      maxScore: 0,
+      recalledCount: 3,
+      engine: 'local',
+      completedAt: 1_000_100
+    }
+    render(
+      <SessionResults results={[skippedTrial1, ranTrial2, recall, orientation]} subtests={subtests} />
+    )
+    // Trial 2 actually ran, so the patient did encode the words -- recall
+    // stands even though one exposure instead of two is a norms deviation.
+    expect(screen.getByText('4 / 5')).toBeInTheDocument()
     expect(screen.getByText('Total: 10 / 11')).toBeInTheDocument()
   })
 })
