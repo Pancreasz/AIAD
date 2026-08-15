@@ -31,6 +31,18 @@ export function useSubtestSession(
         ...sessionContext
       })
 
+      // Debug aid for checking ASR accuracy against scoring during manual runs.
+      // Silenced under Vitest so test output stays clean.
+      if (import.meta.env.MODE !== 'test') {
+        console.log(
+          `[ASR] ${currentSubtest.id} (${engine})\n` +
+            `  heard:    ${JSON.stringify(transcript)}\n` +
+            `  expected: ${JSON.stringify(currentSubtest.expectedSequence ?? '(see scorer)')}\n` +
+            `  score:    ${scoreResult.score}/${scoreResult.maxScore}`,
+          scoreResult
+        )
+      }
+
       setResults((prev) => [
         ...prev,
         { subtestId: currentSubtest.id, transcript, engine, ...scoreResult }
