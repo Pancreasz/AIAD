@@ -15,12 +15,18 @@ export function useSubtestSession(
 
   const beginRecording = useCallback(async () => {
     try {
-      // The mic must not open until the stimulus has finished. If these
-      // overlap, the recording captures the prompt and the ASR transcribes
-      // the app's own voice -- the subtest would appear to pass while
-      // measuring nothing.
-      if (currentSubtest.audio) {
+      // Instruction first, then stimulus, then the mic -- the order a
+      // clinician administers in. The mic must not open until BOTH have
+      // finished: if playback overlaps recording, the ASR transcribes the
+      // app's own voice and the subtest appears to pass while measuring
+      // nothing.
+      if (currentSubtest.instructionAudio || currentSubtest.audio) {
         setPhase('stimulus')
+      }
+      if (currentSubtest.instructionAudio) {
+        await playAudio(currentSubtest.instructionAudio)
+      }
+      if (currentSubtest.audio) {
         await playAudio(currentSubtest.audio)
       }
       recorderRef.current = createRecorder()

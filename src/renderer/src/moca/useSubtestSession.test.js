@@ -263,3 +263,59 @@ describe('useSubtestSession skipping', () => {
     expect(result.current.results[0].completedAt).toBeGreaterThanOrEqual(before)
   })
 })
+
+describe('useSubtestSession instruction audio', () => {
+  const both = [
+    {
+      id: 'digit-span-forward',
+      scorerId: 'digit-span-forward',
+      instructionAudio: 'instr.mp3',
+      audio: 'digits.mp3'
+    }
+  ]
+  const instructionOnly = [
+    { id: 'naming', scorerId: 'naming', instructionAudio: 'instr-naming.mp3' }
+  ]
+
+  it('plays the instruction before the stimulus, and both before the microphone', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(both, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+
+    // A clinician reads the instruction, then presents the stimulus, then
+    // listens. Any other order changes what the subtest measures.
+    expect(deps.playAudio.mock.calls.map((c) => c[0])).toEqual(['instr.mp3', 'digits.mp3'])
+    expect(deps.callOrder).toEqual(['playAudio', 'playAudio', 'recorder.start'])
+    expect(result.current.phase).toBe('recording')
+  })
+
+  it('plays an instruction for a subtest that has no stimulus', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(instructionOnly, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+
+    expect(deps.playAudio).toHaveBeenCalledTimes(1)
+    expect(deps.playAudio).toHaveBeenCalledWith('instr-naming.mp3')
+    expect(deps.callOrder).toEqual(['playAudio', 'recorder.start'])
+  })
+
+  it('routes a failed instruction to the error phase without playing the stimulus', async () => {
+    const deps = setup()
+    deps.playAudio.mockRejectedValueOnce(new Error('Failed to play stimulus audio: instr.mp3'))
+    const { result } = renderHook(() => useSubtestSession(both, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(deps.playAudio).toHaveBeenCalledTimes(1)
+    expect(deps.fakeRecorder.start).not.toHaveBeenCalled()
+  })
+})

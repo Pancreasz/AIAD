@@ -12,9 +12,24 @@ import camelImage from '../assets/moca/images/camel.png'
 // where a root-absolute path resolves against the drive root
 // (file:///C:/moca/audio/...) rather than the app bundle. A relative path
 // resolves against the current document in both cases.
+// Stimulus audio: the test content itself, played immediately before the mic
+// opens.
 const MEMORY_WORDS_AUDIO = 'moca/audio/memory-words.mp3'
 const DIGITS_FORWARD_AUDIO = 'moca/audio/digits-forward.mp3'
 const DIGITS_BACKWARD_AUDIO = 'moca/audio/digits-backward.mp3'
+
+// Instruction narration: spoken versions of instructionTextTh, played before
+// the stimulus. Separate from `audio` because Memory and Digit Span need both,
+// in that order -- the sequence a clinician administers in.
+const INSTR = {
+  naming: 'moca/audio/instr-naming.mp3',
+  memory1: 'moca/audio/instr-memory-1.mp3',
+  memory2: 'moca/audio/instr-memory-2.mp3',
+  digitForward: 'moca/audio/instr-digit-forward.mp3',
+  digitBackward: 'moca/audio/instr-digit-backward.mp3',
+  delayedRecall: 'moca/audio/instr-delayed-recall.mp3',
+  orientation: 'moca/audio/instr-orientation.mp3'
+}
 
 export const SUBTESTS = [
   {
@@ -30,7 +45,8 @@ export const SUBTESTS = [
     instructionTextTh: 'คุณจะเห็นสัตว์สามชนิด หลังนับถอยหลัง ให้บอกชื่อสัตว์ทั้งสามโดยไม่หยุด',
     countdownSec: 3,
     timeLimitSec: 15,
-    scorerId: 'naming'
+    scorerId: 'naming',
+    instructionAudio: INSTR.naming
   },
   {
     id: 'memory-registration-1',
@@ -41,6 +57,7 @@ export const SUBTESTS = [
     countdownSec: 0,
     timeLimitSec: 30,
     scorerId: 'memory-registration',
+    instructionAudio: INSTR.memory1,
     audio: MEMORY_WORDS_AUDIO
   },
   {
@@ -51,6 +68,7 @@ export const SUBTESTS = [
     countdownSec: 0,
     timeLimitSec: 30,
     scorerId: 'memory-registration',
+    instructionAudio: INSTR.memory2,
     audio: MEMORY_WORDS_AUDIO
   },
   {
@@ -61,6 +79,7 @@ export const SUBTESTS = [
     countdownSec: 0,
     timeLimitSec: 7,
     scorerId: 'digit-span-forward',
+    instructionAudio: INSTR.digitForward,
     audio: DIGITS_FORWARD_AUDIO,
     expectedSequence: '21854'
   },
@@ -72,6 +91,7 @@ export const SUBTESTS = [
     countdownSec: 0,
     timeLimitSec: 7,
     scorerId: 'digit-span-backward',
+    instructionAudio: INSTR.digitBackward,
     audio: DIGITS_BACKWARD_AUDIO,
     // Patient hears "742" and must say it reversed: "247".
     expectedSequence: '247'
@@ -83,7 +103,8 @@ export const SUBTESTS = [
     instructionTextTh: 'บอกคำทั้งห้าคำที่จำได้ให้มากที่สุด',
     countdownSec: 0,
     timeLimitSec: 30,
-    scorerId: 'delayed-recall'
+    scorerId: 'delayed-recall',
+    instructionAudio: INSTR.delayedRecall
   },
   {
     id: 'orientation',
@@ -92,6 +113,7 @@ export const SUBTESTS = [
     instructionTextTh: 'บอกวัน เดือน ปี วันที่ สถานที่ และจังหวัดในวันนี้',
     countdownSec: 0,
     timeLimitSec: 15,
-    scorerId: 'orientation'
+    scorerId: 'orientation',
+    instructionAudio: INSTR.orientation
   }
 ]
