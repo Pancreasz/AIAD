@@ -172,14 +172,15 @@ microphone for a single file.
 
 ### `instr-vigilance.mp3`
 
-> คุณจะได้ยินตัวเลขหลายตัว ให้กดปุ่มเว้นวรรคทุกครั้งที่ได้ยินเลข 1
+> คุณจะได้ยินตัวเลขหลายตัว ให้เคาะปุ่ม space-bar หรือคลิกที่ปุ่มบนหน้าจอ ทุกครั้งที่ได้ยินเลขหนึ่ง
 
 Normal conversational pace, like the other instruction files.
 
-This names the **space bar**, not the on-screen button, and `instructionTextTh` in `subtests.js`
-must say the same thing — a patient who hears one instruction and reads another has been given a
-second task nobody meant to set. A key press also has no aiming component, so the latency the app
-records is reaction time rather than reaction time plus target acquisition.
+This names **both** inputs, and `instructionTextTh` in `subtests.js` must say the same thing — a
+patient who hears one instruction and reads another has been given a second task nobody meant to
+set. The space bar comes first because a key press has no aiming component, so the latency the app
+records is reaction time rather than reaction time plus target acquisition; the on-screen button
+is there for anyone who cannot find the key.
 
 ### The sequence itself is not recorded
 
