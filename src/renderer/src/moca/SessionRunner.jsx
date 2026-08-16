@@ -74,6 +74,10 @@ export function SessionRunner() {
     if (phase !== 'tapping') return
     const onKeyDown = (event) => {
       if (event.code !== 'Space') return
+      // A held key auto-repeats at ~30Hz once the OS kicks in, which would
+      // drop a tap into every remaining window -- a guaranteed zero on an
+      // item that allows at most one error.
+      if (event.repeat) return
       // Otherwise the browser also treats it as a click on whatever is
       // focused, double-counting a tap.
       event.preventDefault()
@@ -118,28 +122,32 @@ export function SessionRunner() {
       <p>{currentSubtest.instructionTextEn}</p>
       <p lang="th">{currentSubtest.instructionTextTh}</p>
       {phase === 'instruction' && <button onClick={beginSubtest}>Start</button>}
-      {phase === 'stimulus' && (
-        <>
-          <p>Listen…</p>
-          {/* A media element that stalls without erroring never settles the
-              play() promise, leaving phase stuck here forever. Skip is the
-              escape hatch -- the same one the error phase already offers. */}
-          <button onClick={skipSubtest}>Skip this subtest</button>
-        </>
-      )}
+      {phase === 'stimulus' && <p>Listen…</p>}
       {phase === 'recording' && <button onClick={finishRecording}>Stop &amp; Score</button>}
       {phase === 'scoring' && <p>Scoring...</p>}
-      {phase === 'tapping' && (
-        <>
-          {/* No progress indicator, no digit counter, no per-tap
-              acknowledgement: feedback would turn a sustained-attention task
-              into a tracking task, and showing how many digits remain gives
-              away how many targets are left. */}
-          <button className="tap-target" onClick={recordTap}>
-            TAP
-          </button>
-          <button onClick={skipSubtest}>Skip this subtest</button>
-        </>
+      {(phase === 'tapping' || (phase === 'stimulus' && currentSubtest.responseMode === 'tap')) && (
+        // Visible from the moment the stimulus phase starts -- inert until
+        // the first digit's onset, not absent -- so a self-administering
+        // patient has the whole one-second lead-in to notice and locate the
+        // control instead of ~2 seconds after the first target digit
+        // appears. Enabled and wired to recordTap only once tapping starts.
+        // No progress indicator, no digit counter, no per-tap
+        // acknowledgement: feedback would turn a sustained-attention task
+        // into a tracking task, and showing how many digits remain gives
+        // away how many targets are left.
+        <button
+          className="tap-target"
+          disabled={phase !== 'tapping'}
+          onPointerDown={phase === 'tapping' ? recordTap : undefined}
+        >
+          TAP
+        </button>
+      )}
+      {(phase === 'stimulus' || phase === 'tapping') && (
+        // A media element that stalls without erroring never settles the
+        // play() promise, leaving phase stuck here forever. Skip is the
+        // escape hatch -- the same one the error phase already offers.
+        <button onClick={skipSubtest}>Skip this subtest</button>
       )}
     </div>
   )
