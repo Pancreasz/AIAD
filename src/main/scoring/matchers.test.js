@@ -4,6 +4,7 @@ import {
   exactMatch,
   keywordMatch,
   extractDigitSequence,
+  extractNumberSequence,
   numberSequenceMatch
 } from './matchers.js'
 
@@ -92,5 +93,60 @@ describe('extractDigitSequence with run-on Thai', () => {
 
   it('still returns nothing for speech containing no digits', () => {
     expect(extractDigitSequence('ไม่ทราบ')).toBe('')
+  })
+})
+
+// Serial 7s needs whole numbers, not a digit string: "ninety-three" is one
+// answer worth 93, not the digits 9 and 3. extractDigitSequence cannot be
+// reused -- it drops สิบ entirely, so ห้าสิบเอ็ด (51) reads as "5" and
+// ยี่สิบ (20) reads as nothing at all.
+describe('extractNumberSequence', () => {
+  it('reads numbers spoken as Arabic numerals', () => {
+    expect(extractNumberSequence('93 86 79 72 65')).toEqual([93, 86, 79, 72, 65])
+  })
+
+  it('reads numbers spoken as Thai words', () => {
+    expect(
+      extractNumberSequence('เก้าสิบสาม แปดสิบหก เจ็ดสิบเก้า เจ็ดสิบสอง หกสิบห้า')
+    ).toEqual([93, 86, 79, 72, 65])
+  })
+
+  it('separates run-on Thai numbers with no spaces between them', () => {
+    expect(extractNumberSequence('เก้าสิบสามแปดสิบหก')).toEqual([93, 86])
+  })
+
+  it('reads ยี่สิบ as 20, not as a bare สิบ', () => {
+    expect(extractNumberSequence('ยี่สิบ')).toEqual([20])
+    expect(extractNumberSequence('ยี่สิบเอ็ด')).toEqual([21])
+  })
+
+  it('reads เอ็ด as the ones digit 1', () => {
+    expect(extractNumberSequence('ห้าสิบเอ็ด')).toEqual([51])
+  })
+
+  it('reads a bare สิบ as 10', () => {
+    expect(extractNumberSequence('สิบ')).toEqual([10])
+    expect(extractNumberSequence('สิบห้า')).toEqual([15])
+  })
+
+  it('reads ร้อย with and without a leading หนึ่ง', () => {
+    expect(extractNumberSequence('หนึ่งร้อย')).toEqual([100])
+    expect(extractNumberSequence('ร้อย')).toEqual([100])
+  })
+
+  it('reads Thai numerals', () => {
+    expect(extractNumberSequence('๙๓ ๘๖')).toEqual([93, 86])
+  })
+
+  it('ignores surrounding words and politeness particles', () => {
+    expect(extractNumberSequence('เก้าสิบสามครับ แล้วก็ แปดสิบหก')).toEqual([93, 86])
+  })
+
+  it('reads zero', () => {
+    expect(extractNumberSequence('ศูนย์')).toEqual([0])
+  })
+
+  it('returns nothing for speech containing no numbers', () => {
+    expect(extractNumberSequence('ไม่ทราบ')).toEqual([])
   })
 })

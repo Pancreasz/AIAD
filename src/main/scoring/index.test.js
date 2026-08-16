@@ -35,6 +35,12 @@ describe('scoreItem', () => {
     expect(result.maxScore).toBe(5)
   })
 
+  it('dispatches to the serial sevens scorer, which scores out of 3', () => {
+    const result = scoreItem('serial-sevens', '93 86 79 72 65', {})
+    expect(result.score).toBe(3)
+    expect(result.maxScore).toBe(3)
+  })
+
   it('throws for an unknown subtest id', () => {
     expect(() => scoreItem('unknown-subtest', 'text', {})).toThrow(
       'No scorer registered for subtest "unknown-subtest"'

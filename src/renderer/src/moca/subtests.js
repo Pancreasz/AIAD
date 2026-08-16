@@ -27,6 +27,7 @@ const INSTR = {
   memory2: 'moca/audio/instr-memory-2.mp3',
   digitForward: 'moca/audio/instr-digit-forward.mp3',
   digitBackward: 'moca/audio/instr-digit-backward.mp3',
+  serialSevens: 'moca/audio/instr-serial-sevens.mp3',
   delayedRecall: 'moca/audio/instr-delayed-recall.mp3',
   orientation: 'moca/audio/instr-orientation.mp3'
 }
@@ -95,6 +96,24 @@ export const SUBTESTS = [
     audio: DIGITS_BACKWARD_AUDIO,
     // Patient hears "742" and must say it reversed: "247".
     expectedSequence: '247'
+  },
+  {
+    id: 'serial-sevens',
+    section: 'Attention',
+    instructionTextEn:
+      'Starting at 100, subtract 7, then keep subtracting 7 from each answer. Say each answer out loud.',
+    instructionTextTh: 'เริ่มจาก 100 ให้ลบออกทีละ 7 แล้วลบ 7 จากคำตอบไปเรื่อย ๆ พูดคำตอบออกมาดัง ๆ',
+    countdownSec: 0,
+    // A budget for the process-data record, not a deadline: nothing in the
+    // app enforces it and no clock is shown. Five subtractions with normal
+    // pauses fit comfortably inside 60s, and a slow but correct patient is
+    // never cut off.
+    timeLimitSec: 60,
+    scorerId: 'serial-sevens',
+    instructionAudio: INSTR.serialSevens
+    // No `audio`: unlike Digit Span and Memory there is no stimulus to play.
+    // The starting number lives in the instruction, and the scorer's own
+    // START_VALUE is the single source of truth for 100.
   },
   {
     id: 'delayed-recall',

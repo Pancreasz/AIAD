@@ -81,12 +81,18 @@ reads these files yet; wiring them up is a small follow-on change once they exis
 | `instr-memory-2.mp3` | ฟังคำทั้งห้าอีกครั้ง แล้วพูดทวนให้ได้มากที่สุด |
 | `instr-digit-forward.mp3` | ฟังตัวเลขต่อไปนี้ แล้วพูดทวนตามลำดับ |
 | `instr-digit-backward.mp3` | ฟังตัวเลขต่อไปนี้ แล้วพูดทวนย้อนกลับ |
+| `instr-serial-sevens.mp3` | เริ่มจาก 100 ให้ลบออกทีละ 7 แล้วลบ 7 จากคำตอบไปเรื่อย ๆ พูดคำตอบออกมาดัง ๆ |
 | `instr-delayed-recall.mp3` | บอกคำทั้งห้าคำที่จำได้ให้มากที่สุด |
 | `instr-orientation.mp3` | บอกวัน เดือน ปี วันที่ สถานที่ และจังหวัดในวันนี้ |
 
 **How to read these:** normal conversational pace, warm and clear. Unlike the stimulus files
 above, these are not measured — they are just instructions, so natural delivery is better than
 metronomic.
+
+⚠️ **`instr-serial-sevens.mp3` is the only one of these not yet recorded.** Serial 7s has no
+stimulus file — the starting number is part of the instruction — so this single file is all the
+subtest needs. Until it exists, Serial 7s reaches the error screen and can be skipped like any
+other audio-dependent subtest.
 
 ### `countdown.mp3` — optional
 
