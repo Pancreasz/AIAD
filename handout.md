@@ -2,7 +2,7 @@
 
 Continuing this project in a new Claude Code session? Start here.
 
-*Last updated 2026-08-16, after the local-ASR and Memory subsystems landed.*
+*Last updated 2026-08-16, after Serial 7s and Vigilance subtests landed.*
 
 ## What this project is
 
@@ -28,7 +28,9 @@ Working tree clean.
 | Serial 7s | 3 | scored on the non-linear band table, against what the patient said |
 | Vigilance | 1 | 29 digits at 1/sec, tap on 1 — the only non-voice subtest |
 
-**Not built (6 subtests, 10 points):** sentence repetition (2), verbal fluency (1), abstraction (2) — 5 voice points. Plus Trail Making (1), Cube copy (1), Clock Drawing (3) — **the pen/Wacom subtests are being done by the user's teammates, not here.**
+**Not built (6 subtests, 10 points):** sentence repetition (2), verbal fluency (1),
+abstraction (2) — 5 voice points. Plus Trail Making (1), Cube copy (1), Clock Drawing (3) —
+**the pen/Wacom subtests are being done by the user's teammates, not here.**
 
 ### Architecture as built
 
@@ -64,7 +66,7 @@ the user.
 npm install          # if node_modules is missing
 npm run setup:asr    # ONE TIME: builds sidecar/.venv and downloads the 1.6 GB model
 npm run dev          # launch the app
-npm test             # 129 Vitest tests
+npm test             # 192 Vitest tests
 npm run test:asr     # 10 pytest tests (the Python sidecar)
 npm run test:all     # both
 npm run build        # verify main/preload/renderer compile
