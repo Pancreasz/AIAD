@@ -363,3 +363,53 @@ describe('useSubtestSession abandoned playback', () => {
     expect(result.current.currentSubtest.id).toBe('orientation')
   })
 })
+
+describe('useSubtestSession stops abandoned audio', () => {
+  const twoSubtests = [
+    { id: 'delayed-recall', scorerId: 'delayed-recall', instructionAudio: 'instr.mp3' },
+    { id: 'orientation', scorerId: 'orientation' }
+  ]
+
+  it('stops in-flight playback when the operator skips', async () => {
+    const deps = setup()
+    deps.stopAudio = vi.fn()
+    deps.playAudio.mockImplementation(() => new Promise(() => {}))
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+
+    await act(async () => {
+      result.current.beginRecording()
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    // Without this the file keeps playing audibly over the next subtest.
+    expect(deps.stopAudio).toHaveBeenCalled()
+  })
+
+  it('stops in-flight playback when the operator retries', async () => {
+    const deps = setup()
+    deps.stopAudio = vi.fn()
+    deps.playAudio.mockImplementation(() => new Promise(() => {}))
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+
+    await act(async () => {
+      result.current.beginRecording()
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.retryRecording()
+    })
+
+    expect(deps.stopAudio).toHaveBeenCalled()
+  })
+
+  it('works when no stopAudio dependency is supplied', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+    expect(() => act(() => result.current.skipSubtest())).not.toThrow()
+  })
+})

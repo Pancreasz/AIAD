@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 
 export function useSubtestSession(
   subtests,
-  { transcribeAudio, scoreItem, createRecorder, playAudio },
+  { transcribeAudio, scoreItem, createRecorder, playAudio, stopAudio },
   sessionContext = {}
 ) {
   const [index, setIndex] = useState(0)
@@ -103,17 +103,25 @@ export function useSubtestSession(
     }
   }, [currentSubtest, index, subtests.length, transcribeAudio, scoreItem, sessionContext])
 
-  const retryRecording = useCallback(() => {
+  // Retire the in-flight attempt: bump the generation so its continuation
+  // bails, and silence any file it left playing -- otherwise a skipped
+  // stimulus keeps sounding over the next subtest.
+  const abandonAttempt = useCallback(() => {
     generationRef.current += 1
+    if (stopAudio) stopAudio()
+  }, [stopAudio])
+
+  const retryRecording = useCallback(() => {
+    abandonAttempt()
     setError(null)
     setPhase('instruction')
-  }, [])
+  }, [abandonAttempt])
 
   // A skipped subtest was never administered, so it scores nothing rather
   // than scoring 0 -- 0 would assert the patient failed. maxScore 0 keeps it
   // out of both sides of the total.
   const skipSubtest = useCallback(() => {
-    generationRef.current += 1
+    abandonAttempt()
     setError(null)
     setResults((prev) => [
       ...prev,
@@ -131,7 +139,7 @@ export function useSubtestSession(
     } else {
       setPhase('done')
     }
-  }, [currentSubtest, index, subtests.length])
+  }, [abandonAttempt, currentSubtest, index, subtests.length])
 
   return {
     currentSubtest,

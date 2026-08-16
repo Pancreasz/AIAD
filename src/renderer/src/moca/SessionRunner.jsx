@@ -39,7 +39,8 @@ export function SessionRunner() {
       scoreItem: (subtestId, transcript, context) =>
         window.api.scoreItem(subtestId, transcript, context),
       createRecorder: createAudioRecorder,
-      playAudio: (src) => audioPlayer.play(src)
+      playAudio: (src) => audioPlayer.play(src),
+      stopAudio: () => audioPlayer.stop()
     },
     SESSION_CONTEXT
   )
