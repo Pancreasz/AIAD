@@ -46,7 +46,7 @@ describe('useSubtestSession', () => {
     const { result } = renderHook(() => useSubtestSession(subtests, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
     expect(result.current.phase).toBe('recording')
 
@@ -70,7 +70,7 @@ describe('useSubtestSession', () => {
     const { result } = renderHook(() => useSubtestSession([subtests[1]], deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
       await result.current.finishRecording()
     })
 
@@ -84,7 +84,7 @@ describe('useSubtestSession', () => {
     const { result } = renderHook(() => useSubtestSession([subtests[1]], deps, sessionContext))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
       await result.current.finishRecording()
     })
 
@@ -107,7 +107,7 @@ describe('useSubtestSession', () => {
     const { result } = renderHook(() => useSubtestSession(subtests, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
 
     await act(async () => {
@@ -128,7 +128,7 @@ describe('useSubtestSession', () => {
     const { result } = renderHook(() => useSubtestSession(subtests, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
     await act(async () => {
       await result.current.finishRecording()
@@ -155,7 +155,7 @@ describe('useSubtestSession stimulus playback', () => {
     const { result } = renderHook(() => useSubtestSession(withAudio, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
 
     expect(deps.playAudio).toHaveBeenCalledWith('digits.mp3')
@@ -170,7 +170,7 @@ describe('useSubtestSession stimulus playback', () => {
     const { result } = renderHook(() => useSubtestSession(withoutAudio, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
 
     expect(deps.playAudio).not.toHaveBeenCalled()
@@ -183,7 +183,7 @@ describe('useSubtestSession stimulus playback', () => {
     const { result } = renderHook(() => useSubtestSession(withAudio, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
 
     expect(result.current.phase).toBe('error')
@@ -197,7 +197,7 @@ describe('useSubtestSession stimulus playback', () => {
     const before = Date.now()
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
       await result.current.finishRecording()
     })
 
@@ -219,7 +219,7 @@ describe('useSubtestSession skipping', () => {
     const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
     expect(result.current.phase).toBe('error')
 
@@ -282,7 +282,7 @@ describe('useSubtestSession instruction audio', () => {
     const { result } = renderHook(() => useSubtestSession(both, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
 
     // A clinician reads the instruction, then presents the stimulus, then
@@ -297,7 +297,7 @@ describe('useSubtestSession instruction audio', () => {
     const { result } = renderHook(() => useSubtestSession(instructionOnly, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
 
     expect(deps.playAudio).toHaveBeenCalledTimes(1)
@@ -311,7 +311,7 @@ describe('useSubtestSession instruction audio', () => {
     const { result } = renderHook(() => useSubtestSession(both, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
     })
 
     expect(result.current.phase).toBe('error')
@@ -336,10 +336,10 @@ describe('useSubtestSession abandoned playback', () => {
 
     const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
 
-    // Start the first subtest; beginRecording suspends awaiting the audio.
+    // Start the first subtest; beginSubtest suspends awaiting the audio.
     let pending
     await act(async () => {
-      pending = result.current.beginRecording()
+      pending = result.current.beginSubtest()
       await Promise.resolve()
     })
     expect(result.current.phase).toBe('stimulus')
@@ -377,7 +377,7 @@ describe('useSubtestSession stops abandoned audio', () => {
     const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
 
     await act(async () => {
-      result.current.beginRecording()
+      result.current.beginSubtest()
       await Promise.resolve()
     })
 
@@ -396,7 +396,7 @@ describe('useSubtestSession stops abandoned audio', () => {
     const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
 
     await act(async () => {
-      result.current.beginRecording()
+      result.current.beginSubtest()
       await Promise.resolve()
     })
 
@@ -423,7 +423,7 @@ describe('useSubtestSession response timing', () => {
     const { result } = renderHook(() => useSubtestSession(timed, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
       await result.current.finishRecording()
     })
 
@@ -438,7 +438,7 @@ describe('useSubtestSession response timing', () => {
     const { result } = renderHook(() => useSubtestSession(untimed, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
       await result.current.finishRecording()
     })
 
@@ -467,7 +467,7 @@ describe('useSubtestSession response timing', () => {
     const { result } = renderHook(() => useSubtestSession(withAudio, deps))
 
     await act(async () => {
-      await result.current.beginRecording()
+      await result.current.beginSubtest()
       await result.current.finishRecording()
     })
 

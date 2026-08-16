@@ -27,7 +27,7 @@ export function SessionRunner() {
     phase,
     results,
     error,
-    beginRecording,
+    beginSubtest,
     finishRecording,
     retryRecording,
     skipSubtest
@@ -95,7 +95,7 @@ export function SessionRunner() {
       )}
       <p>{currentSubtest.instructionTextEn}</p>
       <p lang="th">{currentSubtest.instructionTextTh}</p>
-      {phase === 'instruction' && <button onClick={beginRecording}>Start</button>}
+      {phase === 'instruction' && <button onClick={beginSubtest}>Start</button>}
       {phase === 'stimulus' && (
         <>
           <p>Listen…</p>

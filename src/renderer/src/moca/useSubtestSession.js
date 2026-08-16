@@ -15,7 +15,7 @@ export function useSubtestSession(
 
   const currentSubtest = subtests[index]
 
-  const beginRecording = useCallback(async () => {
+  const beginSubtest = useCallback(async () => {
     // Each attempt claims a generation. Anything that abandons the current
     // subtest -- Skip, Retry, or a second Start -- bumps it, so a continuation
     // suspended on `await playAudio(...)` bails instead of resuming against
@@ -162,7 +162,7 @@ export function useSubtestSession(
     phase,
     results,
     error,
-    beginRecording,
+    beginSubtest,
     finishRecording,
     retryRecording,
     skipSubtest
