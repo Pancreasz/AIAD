@@ -135,14 +135,60 @@ audio-dependent subtests.
 
 ---
 
+## Part 3 — Vigilance (built, needs audio)
+
+Eleven files. The patient hears 29 digits at one per second and taps every time they hear **1**.
+
+### `digit-0.mp3` … `digit-9.mp3`
+
+One file per digit, one word each:
+
+| File | Say | File | Say |
+|---|---|---|---|
+| `digit-0.mp3` | ศูนย์ | `digit-5.mp3` | ห้า |
+| `digit-1.mp3` | หนึ่ง | `digit-6.mp3` | หก |
+| `digit-2.mp3` | สอง | `digit-7.mp3` | เจ็ด |
+| `digit-3.mp3` | สาม | `digit-8.mp3` | แปด |
+| `digit-4.mp3` | สี่ | `digit-9.mp3` | เก้า |
+
+**Trim each file tight, and keep it under 800 ms.** Unlike `digits-forward.mp3`, pacing is not
+your job here — the app supplies the rhythm and plays these at exactly one per second. What it
+cannot fix is silence inside the file:
+
+- **Leading silence** shifts that digit's real onset later than its scheduled one, and the app
+  scores the difference as patient reaction time.
+- **Trailing length past 800 ms** overlaps the next digit. This matters most at the run of three
+  consecutive `1`s, where the same file plays three times in a row.
+
+`digit-7.mp3` (เจ็ด) is **not used** — the sequence contains no 7. Record it anyway; it is one
+extra word, and it means a later correction to the sequence does not send you back to the
+microphone for a single file.
+
+### `instr-vigilance.mp3`
+
+> คุณจะได้ยินตัวเลขหลายตัว ให้เคาะปุ่มทุกครั้งที่ได้ยินเลข 1
+
+Normal conversational pace, like the other instruction files.
+
+### The sequence itself is not recorded
+
+```
+5 2 1 3 9 4 1 1 8 0 6 2 1 5 1 9 4 5 1 1 1 4 1 9 0 5 1 1 2
+```
+
+The app plays it from the ten digit files at exact one-second onsets. It lives in `subtests.js`,
+came from your paper form, and a single wrong digit changes every score the subtest produces
+while looking completely normal — so **read it back against the form once.** The tests catch a
+dropped or added digit; nothing but your eyes catches a transposed one.
+
+---
+
 ## Audio needed by subtests not yet built
 
 Not required now — listed so you can plan a single recording session rather than several.
 
 - **Sentence repetition** (2 points) — the patient repeats two sentences read aloud, so both
   sentences need recording.
-- **Vigilance / letter tap** (1 point) — a list of letters read at one per second, where the
-  patient responds on a target letter. This one is timing-critical in the same way the digits are.
 
-Both sentences and the letter list come from your Thai MoCA form; they are not in this repo. Pull
-them from the form before your recording session if you want to capture everything at once.
+The sentences come from your Thai MoCA form; they are not in this repo. Pull them from the form
+before your recording session if you want to capture everything at once.

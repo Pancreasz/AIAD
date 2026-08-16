@@ -14,8 +14,9 @@ innovation competition, <1 month timeline starting 2026-08-13.
 
 ## Current state
 
-**5 of 13 subtests, 16 of 30 points.** 129 JS tests + 10 Python tests, all passing, build clean.
-62 commits on `main`. Working tree clean.
+**7 of 13 subtests, 20 of 30 points.** 192 JS tests + 10 Python tests, all passing, build clean.
+The vigilance work lives on branch `feat/vigilance-tap` and is not yet merged to `main`.
+Working tree clean.
 
 | Built | Points | Notes |
 |---|---|---|
@@ -24,10 +25,10 @@ innovation competition, <1 month timeline starting 2026-08-13.
 | Memory registration ×2 | 0 | MoCA scores these 0; recalled count captured as process data |
 | Delayed Recall | 5 | scored unscorable if registration was skipped |
 | Orientation | 6 | Buddhist Era year |
+| Serial 7s | 3 | scored on the non-linear band table, against what the patient said |
+| Vigilance | 1 | 29 digits at 1/sec, tap on 1 — the only non-voice subtest |
 
-**Not built (8 subtests, 14 points):** vigilance tap (1), serial 7s (3), sentence repetition (2),
-verbal fluency (1), abstraction (2) — all voice, 9 points. Plus Trail Making (1), Cube copy (1),
-Clock Drawing (3) — **the pen/Wacom subtests are being done by the user's teammates, not here.**
+**Not built (6 subtests, 10 points):** sentence repetition (2), verbal fluency (1), abstraction (2) — 5 voice points. Plus Trail Making (1), Cube copy (1), Clock Drawing (3) — **the pen/Wacom subtests are being done by the user's teammates, not here.**
 
 ### Architecture as built
 
@@ -102,11 +103,21 @@ user profile. No network call happens at transcription time.
    test produces `Errors 1 error` and a non-zero exit. Always check the exit code, not the pass
    count.
 
+6. **Vigilance owns its own timing.** The app schedules ten per-digit files at exact one-second
+   onsets rather than playing one long take, because the score depends entirely on which
+   one-second window a tap landed in. Do not "simplify" this into a single recording — the
+   onsets would become hand-measured estimates that need re-measuring on every re-record.
+
 ## What is verified, and what is not
 
 **Verified end to end with real speech:** Digit Span backward transcribed `สองสี่เจ็ด` and scored
 1/1 on the local engine. The sidecar loads the model in ~7.6s and `/health` stays responsive
 during inference.
+
+**Fully coded and tested but never run with real audio:** Serial 7s and Vigilance are implemented,
+tested, and reach the error screen gracefully when stimulus files are missing. Both will pass all
+tests indefinitely without audio, because their recording dependencies do not exist yet — they are
+not verified end to end.
 
 **Not verified:** a full seven-subtest run; delayed recall accuracy on real speech (the `หน้า`
 accepted-variant list includes tonal homophones `น่า`/`นา` as a deliberate gamble, unvalidated);
@@ -115,15 +126,18 @@ Whisper into worst-case decoding — treat ~3-4× realtime as pessimistic and un
 
 ## Next steps, in order
 
-1. **Serial 7s (3 pts) and Abstraction (2 pts)** — cheapest remaining points. Instruction-only,
+1. **Abstraction (2 pts)** — cheapest remaining points. Instruction-only,
    no new recordings, straight extension of the proven pipeline. Same shape as the existing
    scorers in `src/main/scoring/`.
-2. **Sentence repetition (2 pts) and Vigilance (1 pt)** — need new stimulus recordings. The
-   sentences and letter list must come from the user's Thai form; they are not in this repo.
+2. **Sentence repetition (2 pts)** — needs new stimulus recordings. The
+   sentences must come from the user's Thai form; they are not in this repo.
    `docs/moca-audio-recording-script.md` explains the recording conventions.
-3. **A settings screen** for `place`/`province`, currently hardcoded in `SessionRunner.jsx` as
+3. **Audio gap:** `instr-serial-sevens.mp3`, `instr-vigilance.mp3`, and `digit-0..9.mp3` are all
+   unrecorded, so both new Attention subtests (Serial 7s and Vigilance) reach the error screen
+   until they exist.
+4. **A settings screen** for `place`/`province`, currently hardcoded in `SessionRunner.jsx` as
    `SESSION_CONTEXT`.
-4. **Biomarker layer** — genuinely blocked until pilot sessions produce data. `responseMs` and
+5. **Biomarker layer** — genuinely blocked until pilot sessions produce data. `responseMs` and
    `timeLimitSec` are already captured on every result as its first raw material, though see the
    caveat below.
 
