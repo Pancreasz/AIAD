@@ -10,3 +10,6 @@ out
 sidecar/.venv
 __pycache__/
 .pytest_cache/
+# Scratch space for subagent-driven plan execution: ledgers, briefs, review
+# packages. The git history is the durable record, not this.
+.superpowers/
