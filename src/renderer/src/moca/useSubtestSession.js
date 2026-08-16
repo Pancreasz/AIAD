@@ -11,6 +11,7 @@ export function useSubtestSession(
   const [error, setError] = useState(null)
   const recorderRef = useRef(null)
   const generationRef = useRef(0)
+  const recordingStartedAtRef = useRef(null)
 
   const currentSubtest = subtests[index]
 
@@ -51,6 +52,8 @@ export function useSubtestSession(
         return
       }
       recorderRef.current = recorder
+      // Measured from the mic opening, so stimulus playback is excluded.
+      recordingStartedAtRef.current = Date.now()
       setPhase('recording')
     } catch (err) {
       if (abandoned()) return
@@ -63,6 +66,7 @@ export function useSubtestSession(
     setPhase('scoring')
     try {
       const blob = await recorderRef.current.stop()
+      const responseMs = Date.now() - recordingStartedAtRef.current
       const audioBuffer = await blob.arrayBuffer()
       const { text: transcript, engine } = await transcribeAudio(audioBuffer, blob.type, 'th')
       const scoreResult = await scoreItem(currentSubtest.scorerId, transcript, {
@@ -78,7 +82,9 @@ export function useSubtestSession(
           `[ASR] ${currentSubtest.id} (${engine})\n` +
             `  heard:    ${JSON.stringify(transcript)}\n` +
             `  expected: ${JSON.stringify(currentSubtest.expectedSequence ?? '(see scorer)')}\n` +
-            `  score:    ${scoreResult.score}/${scoreResult.maxScore}`,
+            `  score:    ${scoreResult.score}/${scoreResult.maxScore}\n` +
+            `  response: ${(responseMs / 1000).toFixed(1)}s` +
+            (currentSubtest.timeLimitSec ? ` (budget ${currentSubtest.timeLimitSec}s)` : ''),
           scoreResult
         )
       }
@@ -88,7 +94,15 @@ export function useSubtestSession(
         // scoreResult spread first: the hook's own fields (subtestId,
         // transcript, engine, completedAt) are authoritative and must not be
         // overwritable by anything a scorer returns.
-        { ...scoreResult, subtestId: currentSubtest.id, transcript, engine, completedAt: Date.now() }
+        {
+          ...scoreResult,
+          subtestId: currentSubtest.id,
+          transcript,
+          engine,
+          responseMs,
+          timeLimitSec: currentSubtest.timeLimitSec || null,
+          completedAt: Date.now()
+        }
       ])
 
       if (index + 1 < subtests.length) {
@@ -130,6 +144,8 @@ export function useSubtestSession(
         skipped: true,
         score: 0,
         maxScore: 0,
+        responseMs: null,
+        timeLimitSec: currentSubtest.timeLimitSec || null,
         completedAt: Date.now()
       }
     ])

@@ -413,3 +413,64 @@ describe('useSubtestSession stops abandoned audio', () => {
     expect(() => act(() => result.current.skipSubtest())).not.toThrow()
   })
 })
+
+describe('useSubtestSession response timing', () => {
+  const timed = [{ id: 'digit-span-forward', scorerId: 'digit-span-forward', timeLimitSec: 7 }]
+  const untimed = [{ id: 'orientation', scorerId: 'orientation' }]
+
+  it('records how long the microphone was open, and the budget to compare it against', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(timed, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+      await result.current.finishRecording()
+    })
+
+    const entry = result.current.results[0]
+    expect(typeof entry.responseMs).toBe('number')
+    expect(entry.responseMs).toBeGreaterThanOrEqual(0)
+    expect(entry.timeLimitSec).toBe(7)
+  })
+
+  it('reports a null budget for a subtest that declares none', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(untimed, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+      await result.current.finishRecording()
+    })
+
+    expect(result.current.results[0].timeLimitSec).toBeNull()
+    expect(typeof result.current.results[0].responseMs).toBe('number')
+  })
+
+  it('reports null response time for a skipped subtest rather than zero', async () => {
+    // Zero would read as "answered instantly". The subtest never ran.
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(timed, deps))
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(result.current.results[0].responseMs).toBeNull()
+  })
+
+  it('measures the mic-open window, not the time spent playing the stimulus', async () => {
+    const deps = setup()
+    const withAudio = [
+      { id: 'digit-span-forward', scorerId: 'digit-span-forward', audio: 'd.mp3', timeLimitSec: 7 }
+    ]
+    // setup()'s playAudio takes 5ms; that must not be counted as response time.
+    const { result } = renderHook(() => useSubtestSession(withAudio, deps))
+
+    await act(async () => {
+      await result.current.beginRecording()
+      await result.current.finishRecording()
+    })
+
+    expect(result.current.results[0].responseMs).toBeLessThan(5)
+  })
+})
