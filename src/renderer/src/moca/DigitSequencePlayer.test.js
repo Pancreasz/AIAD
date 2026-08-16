@@ -18,6 +18,10 @@ function makeAudioClass(log, { failSrc } = {}) {
     load() {}
     play() {
       log.push({ src: this.src, at: Date.now(), currentTime: this.currentTime })
+      // A real element is left at the end of its buffer once it has played.
+      // Without this the assertion below cannot fail: currentTime would read 0
+      // on every entry even if the player never rewound at all.
+      this.currentTime = 0.42
       return Promise.resolve()
     }
     pause() {
