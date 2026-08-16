@@ -24,20 +24,52 @@ const THAI_DIGIT_WORDS = {
   เก้า: '9'
 }
 
+// Longest first, so a shorter word can never shadow a longer one that starts
+// with the same characters.
+const THAI_DIGIT_ENTRIES = Object.entries(THAI_DIGIT_WORDS).sort(
+  ([a], [b]) => b.length - a.length
+)
+
+// Thai numerals ๐-๙, in value order.
+const THAI_NUMERALS = '๐๑๒๓๔๕๖๗๘๙'
+
+// Scans the transcript character by character rather than splitting on
+// whitespace. Thai does not space between words, so whether Whisper returns
+// "สอง สี่ เจ็ด" or "สองสี่เจ็ด" for the same utterance is arbitrary -- and
+// the whitespace-splitting version scored the run-on form as no digits at
+// all, silently marking a correct answer wrong. Scanning handles spaced,
+// run-on, and mixed forms identically, plus Thai and Arabic numerals.
 export function extractDigitSequence(transcript) {
   const normalized = normalizeText(transcript)
-  const words = normalized.split(' ')
   const digits = []
-  for (const word of words) {
-    if (/^\d$/.test(word)) {
-      digits.push(word)
-    } else if (THAI_DIGIT_WORDS[word]) {
-      digits.push(THAI_DIGIT_WORDS[word])
-    } else {
-      const embedded = word.match(/\d/g)
-      if (embedded) digits.push(...embedded)
+
+  let i = 0
+  while (i < normalized.length) {
+    const char = normalized[i]
+
+    if (char >= '0' && char <= '9') {
+      digits.push(char)
+      i += 1
+      continue
     }
+
+    const numeral = THAI_NUMERALS.indexOf(char)
+    if (numeral !== -1) {
+      digits.push(String(numeral))
+      i += 1
+      continue
+    }
+
+    const word = THAI_DIGIT_ENTRIES.find(([thai]) => normalized.startsWith(thai, i))
+    if (word) {
+      digits.push(word[1])
+      i += word[0].length
+      continue
+    }
+
+    i += 1
   }
+
   return digits.join('')
 }
 
