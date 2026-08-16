@@ -167,6 +167,28 @@ describe('createDigitSequencePlayer', () => {
     expect(log).toHaveLength(2)
   })
 
+  it('retires a previous sequence when play is called again without stop', async () => {
+    const { player, log } = setup()
+    const loaded = player.preload(['1', '9'])
+    await vi.advanceTimersByTimeAsync(1)
+    await loaded
+
+    player.play('1111', { intervalMs: 1000, leadInMs: 0 })
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(log).toHaveLength(2)
+
+    // The first sequence's remaining digits must not sound alongside the
+    // second's -- one sequence's taps would be scored against the other's
+    // digits.
+    player.play('99', { intervalMs: 1000, leadInMs: 0 })
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(log.slice(2).map((entry) => entry.src)).toEqual([
+      'moca/audio/digit-9.mp3',
+      'moca/audio/digit-9.mp3'
+    ])
+  })
+
   it('leaves the play promise unsettled after stop(), so the caller is retired by the hook rather than resumed', async () => {
     const { player } = setup()
     const loaded = player.preload(['1'])

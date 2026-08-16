@@ -35,6 +35,10 @@ export function createDigitSequencePlayer({
   }
 
   function play(sequence, { intervalMs, leadInMs = 0, onStart } = {}) {
+    // Retire anything still scheduled from a previous call. Note this must
+    // cancel the timers, not merely drop the references -- an emptied array
+    // would leave the old sequence sounding and no longer stoppable.
+    stop()
     cancelled = false
     const digits = [...sequence]
     const start = now()
