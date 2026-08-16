@@ -41,6 +41,16 @@ describe('scoreItem', () => {
     expect(result.maxScore).toBe(3)
   })
 
+  it('dispatches to the vigilance scorer, reading taps from the context', () => {
+    const result = scoreItem('vigilance', '', {
+      taps: [1500],
+      sequence: '51',
+      target: '1',
+      intervalMs: 1000
+    })
+    expect(result).toMatchObject({ score: 1, maxScore: 1, hits: 1 })
+  })
+
   it('throws for an unknown subtest id', () => {
     expect(() => scoreItem('unknown-subtest', 'text', {})).toThrow(
       'No scorer registered for subtest "unknown-subtest"'
