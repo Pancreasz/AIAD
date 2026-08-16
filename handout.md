@@ -121,7 +121,7 @@ tested, and reach the error screen gracefully when stimulus files are missing. B
 tests indefinitely without audio, because their recording dependencies do not exist yet — they are
 not verified end to end.
 
-**Not verified:** a full seven-subtest run; delayed recall accuracy on real speech (the `หน้า`
+**Not verified:** a full nine-subtest run; delayed recall accuracy on real speech (the `หน้า`
 accepted-variant list includes tonal homophones `น่า`/`นา` as a deliberate gamble, unvalidated);
 real-speech latency per subtest. My only latency measurement used a synthetic tone, which pushes
 Whisper into worst-case decoding — treat ~3-4× realtime as pessimistic and unproven.
