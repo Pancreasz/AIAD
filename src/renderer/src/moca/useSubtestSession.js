@@ -10,10 +10,20 @@ export function useSubtestSession(
   const [results, setResults] = useState([])
   const [error, setError] = useState(null)
   const recorderRef = useRef(null)
+  const generationRef = useRef(0)
 
   const currentSubtest = subtests[index]
 
   const beginRecording = useCallback(async () => {
+    // Each attempt claims a generation. Anything that abandons the current
+    // subtest -- Skip, Retry, or a second Start -- bumps it, so a continuation
+    // suspended on `await playAudio(...)` bails instead of resuming against
+    // whatever subtest is current by then. Without this, skipping during
+    // playback let the abandoned attempt open the microphone on the NEXT
+    // subtest seconds later. Same pattern as sidecarProcess.js.
+    const generation = (generationRef.current += 1)
+    const abandoned = () => generationRef.current !== generation
+
     try {
       // Instruction first, then stimulus, then the mic -- the order a
       // clinician administers in. The mic must not open until BOTH have
@@ -25,14 +35,25 @@ export function useSubtestSession(
       }
       if (currentSubtest.instructionAudio) {
         await playAudio(currentSubtest.instructionAudio)
+        if (abandoned()) return
       }
       if (currentSubtest.audio) {
         await playAudio(currentSubtest.audio)
+        if (abandoned()) return
       }
-      recorderRef.current = createRecorder()
-      await recorderRef.current.start()
+
+      const recorder = createRecorder()
+      await recorder.start()
+      if (abandoned()) {
+        // The mic opened for a subtest nobody is on any more. Close it rather
+        // than leaving the stream live and the recorder unreachable.
+        await recorder.stop()
+        return
+      }
+      recorderRef.current = recorder
       setPhase('recording')
     } catch (err) {
+      if (abandoned()) return
       setError(err.message)
       setPhase('error')
     }
@@ -83,6 +104,7 @@ export function useSubtestSession(
   }, [currentSubtest, index, subtests.length, transcribeAudio, scoreItem, sessionContext])
 
   const retryRecording = useCallback(() => {
+    generationRef.current += 1
     setError(null)
     setPhase('instruction')
   }, [])
@@ -91,6 +113,7 @@ export function useSubtestSession(
   // than scoring 0 -- 0 would assert the patient failed. maxScore 0 keeps it
   // out of both sides of the total.
   const skipSubtest = useCallback(() => {
+    generationRef.current += 1
     setError(null)
     setResults((prev) => [
       ...prev,

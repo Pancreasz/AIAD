@@ -319,3 +319,47 @@ describe('useSubtestSession instruction audio', () => {
     expect(deps.fakeRecorder.start).not.toHaveBeenCalled()
   })
 })
+
+describe('useSubtestSession abandoned playback', () => {
+  const twoSubtests = [
+    { id: 'delayed-recall', scorerId: 'delayed-recall', instructionAudio: 'instr.mp3' },
+    { id: 'orientation', scorerId: 'orientation', instructionAudio: 'instr-orientation.mp3' }
+  ]
+
+  it('does not let a skipped subtest\'s playback open the mic on the NEXT subtest', async () => {
+    const deps = setup()
+    // A stimulus we control, so we can skip while it is still playing.
+    let releaseAudio
+    deps.playAudio.mockImplementation(
+      () => new Promise((resolve) => { releaseAudio = resolve })
+    )
+
+    const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
+
+    // Start the first subtest; beginRecording suspends awaiting the audio.
+    let pending
+    await act(async () => {
+      pending = result.current.beginRecording()
+      await Promise.resolve()
+    })
+    expect(result.current.phase).toBe('stimulus')
+
+    // Operator skips while the audio is still playing.
+    act(() => {
+      result.current.skipSubtest()
+    })
+    expect(result.current.currentSubtest.id).toBe('orientation')
+    expect(result.current.phase).toBe('instruction')
+
+    // The abandoned audio now finishes. Its continuation must NOT resume and
+    // open the microphone -- it belongs to a subtest the operator abandoned.
+    await act(async () => {
+      releaseAudio()
+      await pending
+    })
+
+    expect(deps.fakeRecorder.start).not.toHaveBeenCalled()
+    expect(result.current.phase).toBe('instruction')
+    expect(result.current.currentSubtest.id).toBe('orientation')
+  })
+})
