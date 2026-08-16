@@ -669,6 +669,32 @@ describe('useSubtestSession in tap mode', () => {
     expect(result.current.results[0]).toMatchObject({ subtestId: 'vigilance', skipped: true })
   })
 
+  it('does not score an abandoned tap sequence when it finishes after a skip', async () => {
+    const deps = setupTap()
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+    await act(async () => {
+      deps.startSequence()
+    })
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    // stopDigitSequence leaves play()'s promise unsettled by design, so the
+    // real player would never resolve here -- but the generation guard is what
+    // must retire the continuation, and it has to hold even if it does.
+    await act(async () => {
+      deps.releaseSequence()
+    })
+
+    expect(deps.scoreItem).not.toHaveBeenCalled()
+    expect(result.current.results).toHaveLength(1)
+    expect(result.current.results[0]).toMatchObject({ subtestId: 'vigilance', skipped: true })
+  })
+
   it('routes a preload failure to the error phase rather than a silent skip', async () => {
     const deps = setupTap()
     deps.preloadDigits.mockRejectedValue(new Error('Failed to load digit audio: moca/audio/digit-3.mp3'))

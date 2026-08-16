@@ -98,14 +98,22 @@ export function useSubtestSession(
     [currentSubtest, preloadDigits, playDigitSequence, scoreItem, sessionContext, completeSubtest]
   )
 
+  // Retire the in-flight attempt: bump the generation so its continuation
+  // bails, and silence any file it left playing -- otherwise a skipped
+  // stimulus keeps sounding over the next subtest.
+  const abandonAttempt = useCallback(() => {
+    generationRef.current += 1
+    if (stopAudio) stopAudio()
+    if (stopDigitSequence) stopDigitSequence()
+  }, [stopAudio, stopDigitSequence])
+
   const beginSubtest = useCallback(async () => {
-    // Each attempt claims a generation. Anything that abandons the current
-    // subtest -- Skip, Retry, or a second Start -- bumps it, so a continuation
-    // suspended on `await playAudio(...)` bails instead of resuming against
-    // whatever subtest is current by then. Without this, skipping during
-    // playback let the abandoned attempt open the microphone on the NEXT
-    // subtest seconds later. Same pattern as sidecarProcess.js.
-    const generation = (generationRef.current += 1)
+    // Retire any attempt still in flight before claiming a generation. Doing
+    // this inline used to bump the counter without stopping the player, so a
+    // second Start left the previous sequence's timers running and two digit
+    // streams played over each other.
+    abandonAttempt()
+    const generation = generationRef.current
     const abandoned = () => generationRef.current !== generation
 
     try {
@@ -148,7 +156,7 @@ export function useSubtestSession(
       setError(err.message)
       setPhase('error')
     }
-  }, [currentSubtest, createRecorder, playAudio, runTapSequence])
+  }, [currentSubtest, createRecorder, playAudio, runTapSequence, abandonAttempt])
 
   const finishRecording = useCallback(async () => {
     setPhase('scoring')
@@ -183,15 +191,6 @@ export function useSubtestSession(
       setPhase('error')
     }
   }, [currentSubtest, transcribeAudio, scoreItem, sessionContext, completeSubtest])
-
-  // Retire the in-flight attempt: bump the generation so its continuation
-  // bails, and silence any file it left playing -- otherwise a skipped
-  // stimulus keeps sounding over the next subtest.
-  const abandonAttempt = useCallback(() => {
-    generationRef.current += 1
-    if (stopAudio) stopAudio()
-    if (stopDigitSequence) stopDigitSequence()
-  }, [stopAudio, stopDigitSequence])
 
   const retryRecording = useCallback(() => {
     abandonAttempt()
