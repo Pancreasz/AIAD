@@ -88,6 +88,32 @@ export function useSubtestSession(
       })
       if (abandoned()) return
 
+      // The tap path's counterpart to the [ASR] block below. Without it this
+      // subtest is silent during a manual run: it shows no per-tap feedback by
+      // clinical design, so a developer watching a session has no way to tell a
+      // working run from one where nothing registered -- both look identical
+      // until the results table, which only prints the final point.
+      if (import.meta.env.MODE !== 'test') {
+        const targetCount = [...currentSubtest.sequence].filter(
+          (d) => d === currentSubtest.target
+        ).length
+        const latencies = scoreResult.tapLatencies ?? []
+        const mean = latencies.length
+          ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+          : null
+        console.log(
+          `[TAP] ${currentSubtest.id}\n` +
+            `  taps:     ${taps.length} at ${JSON.stringify(taps)}\n` +
+            `  hits:     ${scoreResult.hits}/${targetCount}\n` +
+            `  misses:   ${scoreResult.misses}\n` +
+            `  false:    ${scoreResult.falseTaps}\n` +
+            `  errors:   ${scoreResult.errors} (1 point if 1 or fewer)\n` +
+            `  score:    ${scoreResult.score}/${scoreResult.maxScore}\n` +
+            `  latency:  ${mean === null ? 'n/a' : `${mean}ms mean`} ${JSON.stringify(latencies)}`,
+          scoreResult
+        )
+      }
+
       completeSubtest(scoreResult, {
         transcript: '',
         // No ASR ran. SessionResults already renders `engine ?? '—'`.
