@@ -27,10 +27,29 @@ const INSTR = {
   memory2: 'moca/audio/instr-memory-2.mp3',
   digitForward: 'moca/audio/instr-digit-forward.mp3',
   digitBackward: 'moca/audio/instr-digit-backward.mp3',
+  vigilance: 'moca/audio/instr-vigilance.mp3',
   serialSevens: 'moca/audio/instr-serial-sevens.mp3',
   delayedRecall: 'moca/audio/instr-delayed-recall.mp3',
   orientation: 'moca/audio/instr-orientation.mp3'
 }
+
+// Vigilance: the patient taps every time they hear the target digit. Straight
+// from the user's Thai MoCA-Basic form -- 29 digits, 11 of them targets. A
+// single wrong digit here changes every score the subtest produces and looks
+// completely normal, so subtests.test.js asserts its shape.
+//
+// The three consecutive targets at positions 18-20 are the structurally
+// important part: they are where a patient tapping perseveratively and one
+// genuinely tracking produce identical output, and the non-target that follows
+// separates them.
+const VIGILANCE_SEQUENCE = '52139411806215194511141905112'
+const VIGILANCE_TARGET = '1'
+const VIGILANCE_INTERVAL_MS = 1000
+// Silence between the instruction and the first digit, so the sequence does
+// not start on the heels of the instruction's last syllable. Silence rather
+// than a countdown: a countdown hands the patient a rhythm to lock onto
+// before the task begins.
+const VIGILANCE_LEAD_IN_MS = 1000
 
 export const SUBTESTS = [
   {
@@ -96,6 +115,27 @@ export const SUBTESTS = [
     audio: DIGITS_BACKWARD_AUDIO,
     // Patient hears "742" and must say it reversed: "247".
     expectedSequence: '247'
+  },
+  {
+    id: 'vigilance',
+    section: 'Attention',
+    instructionTextEn:
+      'You will hear a list of numbers. Tap the button every time you hear the number 1.',
+    instructionTextTh: 'คุณจะได้ยินตัวเลขหลายตัว ให้เคาะปุ่มทุกครั้งที่ได้ยินเลข 1',
+    countdownSec: 0,
+    // The sequence's own fixed duration: 1s lead-in plus 29 digits at 1s each.
+    // A recorded fact rather than a deadline -- the subtest ends when the audio
+    // ends, so there is nothing here to enforce.
+    timeLimitSec: 30,
+    scorerId: 'vigilance',
+    responseMode: 'tap',
+    sequence: VIGILANCE_SEQUENCE,
+    target: VIGILANCE_TARGET,
+    intervalMs: VIGILANCE_INTERVAL_MS,
+    leadInMs: VIGILANCE_LEAD_IN_MS,
+    instructionAudio: INSTR.vigilance
+    // No `audio`: the stimulus is 29 scheduled files, described by `sequence`
+    // rather than by one path.
   },
   {
     id: 'serial-sevens',
