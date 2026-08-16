@@ -44,6 +44,59 @@ describe('SessionResults', () => {
   })
 })
 
+describe('SessionResults process data', () => {
+  const tapSubtests = [
+    { id: 'vigilance', section: 'Attention' },
+    { id: 'naming', section: 'Naming' }
+  ]
+
+  const vigilance = {
+    subtestId: 'vigilance',
+    score: 1,
+    maxScore: 1,
+    engine: null,
+    hits: 11,
+    misses: 0,
+    falseTaps: 0,
+    errors: 0,
+    tapLatencies: [400, 420, 380]
+  }
+
+  // The point alone cannot distinguish a patient who tracked every digit from
+  // one who tapped twice and got lucky, and this is the subtest that produces
+  // the only clean reaction-time data in the app.
+  it('reports the tap counts and mean reaction time for a tap subtest', () => {
+    render(<SessionResults results={[vigilance]} subtests={tapSubtests} />)
+
+    expect(
+      screen.getByText('11 hits, 0 misses, 0 false taps · 400 ms mean')
+    ).toBeInTheDocument()
+  })
+
+  it('omits the mean when no target was ever hit, rather than printing NaN', () => {
+    const missedEverything = {
+      ...vigilance,
+      score: 0,
+      hits: 0,
+      misses: 11,
+      errors: 11,
+      tapLatencies: []
+    }
+    render(<SessionResults results={[missedEverything]} subtests={tapSubtests} />)
+
+    expect(screen.getByText('0 hits, 11 misses, 0 false taps')).toBeInTheDocument()
+  })
+
+  it('leaves the process cell empty for subtests that produce none', () => {
+    const results = [{ subtestId: 'naming', score: 2, maxScore: 3, engine: 'local' }]
+    const { container } = render(<SessionResults results={results} subtests={tapSubtests} />)
+
+    const cells = container.querySelectorAll('tbody tr td')
+    expect(cells).toHaveLength(4)
+    expect(cells[3].textContent).toBe('')
+  })
+})
+
 describe('SessionResults memory rows and recall interval', () => {
   const registration = {
     subtestId: 'memory-registration-2',

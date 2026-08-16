@@ -44,6 +44,21 @@ function recallInterval(results) {
   return { text: formatGap(elapsedMs), short: elapsedMs < PROTOCOL_RECALL_GAP_MS }
 }
 
+// Process data a paper form throws away. Only the tap subtest produces any so
+// far: `responseMs` is deliberately excluded because it measures how long the
+// microphone was open, which includes an operator's hand on the Stop button
+// and so is not comparable between subtests, let alone between patients.
+function processData(result) {
+  if (result.skipped || typeof result.hits !== 'number') return null
+
+  const counts = `${result.hits} hits, ${result.misses} misses, ${result.falseTaps} false taps`
+  const latencies = result.tapLatencies ?? []
+  if (!latencies.length) return counts
+
+  const mean = Math.round(latencies.reduce((sum, ms) => sum + ms, 0) / latencies.length)
+  return `${counts} · ${mean} ms mean`
+}
+
 export function SessionResults({ results, subtests }) {
   const total = results.reduce(
     (sum, r) => (isUnscorableRecall(r, results) ? sum : sum + r.score),
@@ -65,6 +80,7 @@ export function SessionResults({ results, subtests }) {
             <th>Subtest</th>
             <th>Score</th>
             <th>Engine</th>
+            <th>Process data</th>
           </tr>
         </thead>
         <tbody>
@@ -87,6 +103,10 @@ export function SessionResults({ results, subtests }) {
                         : `${r.score} / ${r.maxScore}`}
                 </td>
                 <td>{r.engine ?? '—'}</td>
+                {/* Empty rather than a dash: a subtest that produces no process
+                    data is not missing a value, and a dash here would also
+                    collide with the engine column's own placeholder. */}
+                <td className="process-data">{processData(r)}</td>
               </tr>
             )
           })}
