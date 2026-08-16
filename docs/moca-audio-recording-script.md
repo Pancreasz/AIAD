@@ -151,14 +151,20 @@ One file per digit, one word each:
 | `digit-3.mp3` | สาม | `digit-8.mp3` | แปด |
 | `digit-4.mp3` | สี่ | `digit-9.mp3` | เก้า |
 
-**Trim each file tight, and keep it under 800 ms.** Unlike `digits-forward.mp3`, pacing is not
-your job here — the app supplies the rhythm and plays these at exactly one per second. What it
-cannot fix is silence inside the file:
+**Aim for under 800 ms, and cut leading silence to nothing.** Unlike `digits-forward.mp3`, pacing
+is not your job here — the app supplies the rhythm and plays these at exactly one per second. The
+two ends of the file are not equally forgiving:
 
-- **Leading silence** shifts that digit's real onset later than its scheduled one, and the app
-  scores the difference as patient reaction time.
-- **Trailing length past 800 ms** overlaps the next digit. This matters most at the run of three
-  consecutive `1`s, where the same file plays three times in a row.
+- **Leading silence is the one that corrupts scores.** It shifts the digit's real onset later than
+  its scheduled one, and the app scores that difference as the patient's reaction time. Nothing in
+  the app can detect or correct it. Cut it to zero.
+- **Trailing length is now handled.** The player silences each digit the moment the next one
+  starts, so a long file is truncated rather than allowed to sound over its neighbour. A file that
+  overruns loses its own tail — which matters only if the word itself is still going.
+
+The recordings currently in the folder run 1088–1344 ms with a ~21 ms lead-in: the onsets are
+excellent, and the overruns are absorbed by the player. Re-trimming them is a quality improvement,
+not a prerequisite.
 
 `digit-7.mp3` (เจ็ด) is **not used** — the sequence contains no 7. Record it anyway; it is one
 extra word, and it means a later correction to the sequence does not send you back to the
@@ -166,9 +172,14 @@ microphone for a single file.
 
 ### `instr-vigilance.mp3`
 
-> คุณจะได้ยินตัวเลขหลายตัว ให้เคาะปุ่มทุกครั้งที่ได้ยินเลข 1
+> คุณจะได้ยินตัวเลขหลายตัว ให้กดปุ่มเว้นวรรคทุกครั้งที่ได้ยินเลข 1
 
 Normal conversational pace, like the other instruction files.
+
+This names the **space bar**, not the on-screen button, and `instructionTextTh` in `subtests.js`
+must say the same thing — a patient who hears one instruction and reads another has been given a
+second task nobody meant to set. A key press also has no aiming component, so the latency the app
+records is reaction time rather than reaction time plus target acquisition.
 
 ### The sequence itself is not recorded
 

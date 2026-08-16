@@ -14,6 +14,9 @@ export function createDigitSequencePlayer({
   const elements = new Map()
   let timers = []
   let cancelled = false
+  // The element currently sounding, if any. Tracked because the recordings can
+  // outlast their slot and must be cut off rather than left to overlap.
+  let sounding = null
 
   // Preloading is not an optimisation. A cold element adds tens of
   // milliseconds of decode delay before its first sound, varying per file --
@@ -62,9 +65,17 @@ export function createDigitSequencePlayer({
 
           const audio = elements.get(digit)
           if (!audio) return
+          // Cut off whatever is still sounding before this digit starts. A
+          // recording longer than the interval would otherwise bleed its tail
+          // over the next digit -- worst across a run of repeated targets,
+          // where the whole point is that the patient hears each one as a
+          // separate digit. Owning the boundary here means an over-long file
+          // costs audio quality, never scoring accuracy.
+          if (sounding && sounding !== audio) sounding.pause()
           // The same element plays repeatedly, and is at its end by the second
-          // time round.
+          // time round. Rewinding also truncates it when a digit repeats.
           audio.currentTime = 0
+          sounding = audio
           const started = audio.play()
           // A digit that fails to sound is a scoring problem, not a crash: it
           // shows up as a miss in the result rather than killing the session
@@ -88,7 +99,12 @@ export function createDigitSequencePlayer({
     cancelled = true
     for (const timer of timers) clearTimer(timer)
     timers = []
-    for (const audio of elements.values()) audio.pause()
+    // Only one element can be sounding at a time now, so silence that one
+    // rather than sweeping every preloaded element.
+    if (sounding) {
+      sounding.pause()
+      sounding = null
+    }
   }
 
   return { preload, play, stop }

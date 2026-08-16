@@ -140,7 +140,11 @@ export function SessionRunner() {
           disabled={phase !== 'tapping'}
           onPointerDown={phase === 'tapping' ? recordTap : undefined}
         >
-          TAP
+          {/* Thai, like every other patient-facing string. The instruction
+              names the space bar; this is the visible fallback for anyone who
+              reaches for the mouse, and it also shows the patient where the
+              task is happening. */}
+          <span lang="th">กดที่นี่</span>
         </button>
       )}
       {(phase === 'stimulus' || phase === 'tapping') && (

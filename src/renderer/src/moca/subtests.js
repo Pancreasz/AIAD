@@ -119,9 +119,13 @@ export const SUBTESTS = [
   {
     id: 'vigilance',
     section: 'Attention',
+    // Names the space bar rather than the on-screen button: a key press has no
+    // aiming component, so the latency recorded is reaction time rather than
+    // reaction time plus how long it took to find a target. Must stay in step
+    // with what instr-vigilance.mp3 actually says.
     instructionTextEn:
-      'You will hear a list of numbers. Tap the button every time you hear the number 1.',
-    instructionTextTh: 'คุณจะได้ยินตัวเลขหลายตัว ให้เคาะปุ่มทุกครั้งที่ได้ยินเลข 1',
+      'You will hear a list of numbers. Press the space bar every time you hear the number 1.',
+    instructionTextTh: 'คุณจะได้ยินตัวเลขหลายตัว ให้กดปุ่มเว้นวรรคทุกครั้งที่ได้ยินเลข 1',
     countdownSec: 0,
     // The sequence's own fixed duration: 1s lead-in plus 29 digits at 1s each.
     // A recorded fact rather than a deadline -- the subtest ends when the audio

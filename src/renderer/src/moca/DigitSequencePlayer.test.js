@@ -3,7 +3,7 @@ import { createDigitSequencePlayer } from './DigitSequencePlayer.js'
 
 // A fake HTMLAudioElement: records every play() with the fake clock's time, so
 // tests assert onsets rather than waiting 29 real seconds.
-function makeAudioClass(log, { failSrc } = {}) {
+function makeAudioClass(log, { failSrc, pauses = [] } = {}) {
   return class FakeAudio {
     constructor(src) {
       this.src = src
@@ -26,19 +26,23 @@ function makeAudioClass(log, { failSrc } = {}) {
     }
     pause() {
       this.paused = true
+      pauses.push({ src: this.src, at: Date.now() })
     }
   }
 }
 
 function setup({ failSrc } = {}) {
   const log = []
+  // Kept separate from `log` so the existing onset assertions still see only
+  // playbacks.
+  const pauses = []
   const player = createDigitSequencePlayer({
-    audioClass: makeAudioClass(log, { failSrc }),
+    audioClass: makeAudioClass(log, { failSrc, pauses }),
     now: () => Date.now(),
     setTimer: setTimeout,
     clearTimer: clearTimeout
   })
-  return { player, log }
+  return { player, log, pauses }
 }
 
 describe('createDigitSequencePlayer', () => {
@@ -111,6 +115,27 @@ describe('createDigitSequencePlayer', () => {
 
     expect(log).toHaveLength(3)
     expect(log.every((entry) => entry.currentTime === 0)).toBe(true)
+  })
+
+  // Real recordings routinely run longer than the interval -- the shipped
+  // Thai digits are 1088-1344ms against a 1000ms slot. Without this, each
+  // digit's tail sounds over the start of the next, which is worst at the run
+  // of three consecutive targets, exactly where the patient must hear each
+  // digit as distinct for the item to measure anything.
+  it('silences the previous digit when the next one starts', async () => {
+    const { player, pauses } = setup()
+    const loaded = player.preload(['1', '2'])
+    await vi.advanceTimersByTimeAsync(1)
+    await loaded
+
+    const start = Date.now()
+    player.play('12', { intervalMs: 1000, leadInMs: 0 })
+
+    await vi.advanceTimersByTimeAsync(500)
+    expect(pauses).toEqual([])
+
+    await vi.advanceTimersByTimeAsync(500)
+    expect(pauses).toEqual([{ src: 'moca/audio/digit-1.mp3', at: start + 1000 }])
   })
 
   it('calls onStart when the first digit plays, not when play is called', async () => {
