@@ -474,3 +474,211 @@ describe('useSubtestSession response timing', () => {
     expect(result.current.results[0].responseMs).toBeLessThan(5)
   })
 })
+
+const tapSubtest = {
+  id: 'vigilance',
+  scorerId: 'vigilance',
+  responseMode: 'tap',
+  sequence: '51319',
+  target: '1',
+  intervalMs: 1000,
+  leadInMs: 1000,
+  instructionAudio: 'moca/audio/instr-vigilance.mp3'
+}
+
+function setupTap() {
+  const base = setup()
+  // The shared setup() resolves playAudio on a 5ms timer, to prove ordering in
+  // the voice tests. Here that timer would race every `await act(...)`, so the
+  // tap tests resolve instruction audio on a microtask instead and leave the
+  // ordering guarantee to the test that exists for it.
+  base.playAudio = vi.fn().mockResolvedValue(undefined)
+  let releaseSequence
+  let startSequence
+  const preloadDigits = vi.fn().mockResolvedValue(undefined)
+  const playDigitSequence = vi.fn().mockImplementation((sequence, { onStart }) => {
+    // Hands the test the two moments that matter: when the first digit sounds
+    // (taps start counting) and when the last window closes (scoring runs).
+    startSequence = onStart
+    return new Promise((resolve) => {
+      releaseSequence = resolve
+    })
+  })
+  const stopDigitSequence = vi.fn()
+  return {
+    ...base,
+    preloadDigits,
+    playDigitSequence,
+    stopDigitSequence,
+    startSequence: () => startSequence(),
+    releaseSequence: () => releaseSequence()
+  }
+}
+
+describe('useSubtestSession in tap mode', () => {
+  // The tap-mode sibling of the "mic never opens before playback finishes"
+  // guarantee. A recorder left open through 29 seconds of the app's own voice
+  // is a live microphone nobody closes.
+  it('never creates a recorder', async () => {
+    const deps = setupTap()
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+    await act(async () => {
+      deps.startSequence()
+    })
+    await act(async () => {
+      deps.releaseSequence()
+    })
+
+    expect(deps.createRecorder).not.toHaveBeenCalled()
+    expect(deps.transcribeAudio).not.toHaveBeenCalled()
+  })
+
+  it('preloads only the distinct digits the sequence actually uses', async () => {
+    const deps = setupTap()
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+
+    expect(deps.preloadDigits).toHaveBeenCalledWith(['5', '1', '3', '9'])
+  })
+
+  it('enters the tapping phase when the first digit sounds, not when Start is pressed', async () => {
+    const deps = setupTap()
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+    expect(result.current.phase).toBe('stimulus')
+
+    await act(async () => {
+      deps.startSequence()
+    })
+    expect(result.current.phase).toBe('tapping')
+  })
+
+  it('measures taps from the first digit onset and scores them', async () => {
+    const deps = setupTap()
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+    const nowSpy = vi.spyOn(Date, 'now')
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+
+    nowSpy.mockReturnValue(10_000)
+    await act(async () => {
+      deps.startSequence()
+    })
+
+    nowSpy.mockReturnValue(11_400)
+    act(() => {
+      result.current.recordTap()
+    })
+    nowSpy.mockReturnValue(13_500)
+    act(() => {
+      result.current.recordTap()
+    })
+
+    nowSpy.mockRestore()
+    await act(async () => {
+      deps.releaseSequence()
+    })
+
+    expect(deps.scoreItem).toHaveBeenCalledWith(
+      'vigilance',
+      '',
+      expect.objectContaining({
+        taps: [1400, 3500],
+        sequence: '51319',
+        target: '1',
+        intervalMs: 1000
+      })
+    )
+  })
+
+  it('ignores taps outside the tapping phase', async () => {
+    const deps = setupTap()
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    act(() => {
+      result.current.recordTap()
+    })
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+    act(() => {
+      result.current.recordTap()
+    })
+    await act(async () => {
+      deps.startSequence()
+    })
+    await act(async () => {
+      deps.releaseSequence()
+    })
+
+    expect(deps.scoreItem).toHaveBeenCalledWith('vigilance', '', expect.objectContaining({ taps: [] }))
+  })
+
+  it('records the result with no transcript and no engine', async () => {
+    const deps = setupTap()
+    deps.scoreItem.mockResolvedValue({ score: 1, maxScore: 1, hits: 11, misses: 0, falseTaps: 0 })
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+    await act(async () => {
+      deps.startSequence()
+    })
+    await act(async () => {
+      deps.releaseSequence()
+    })
+
+    expect(result.current.phase).toBe('done')
+    expect(result.current.results[0]).toMatchObject({
+      subtestId: 'vigilance',
+      score: 1,
+      maxScore: 1,
+      transcript: '',
+      engine: null
+    })
+  })
+
+  it('cancels the sequence when the subtest is skipped mid-run', async () => {
+    const deps = setupTap()
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+    await act(async () => {
+      deps.startSequence()
+    })
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    expect(deps.stopDigitSequence).toHaveBeenCalled()
+    expect(result.current.results[0]).toMatchObject({ subtestId: 'vigilance', skipped: true })
+  })
+
+  it('routes a preload failure to the error phase rather than a silent skip', async () => {
+    const deps = setupTap()
+    deps.preloadDigits.mockRejectedValue(new Error('Failed to load digit audio: moca/audio/digit-3.mp3'))
+    const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
+
+    await act(async () => {
+      result.current.beginSubtest()
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(result.current.error).toContain('digit-3.mp3')
+  })
+})

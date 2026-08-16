@@ -2,7 +2,16 @@ import { useState, useCallback, useRef } from 'react'
 
 export function useSubtestSession(
   subtests,
-  { transcribeAudio, scoreItem, createRecorder, playAudio, stopAudio },
+  {
+    transcribeAudio,
+    scoreItem,
+    createRecorder,
+    playAudio,
+    stopAudio,
+    preloadDigits,
+    playDigitSequence,
+    stopDigitSequence
+  },
   sessionContext = {}
 ) {
   const [index, setIndex] = useState(0)
@@ -12,8 +21,82 @@ export function useSubtestSession(
   const recorderRef = useRef(null)
   const generationRef = useRef(0)
   const recordingStartedAtRef = useRef(null)
+  const tapsRef = useRef([])
+  const sequenceStartedAtRef = useRef(null)
 
   const currentSubtest = subtests[index]
+
+  // Both modalities end the same way: append a result, then advance or finish.
+  // The hook's own fields are written after the scorer's spread so a scorer
+  // can never overwrite subtestId, transcript, or engine.
+  const completeSubtest = useCallback(
+    (scoreResult, fields) => {
+      setResults((prev) => [
+        ...prev,
+        {
+          ...scoreResult,
+          subtestId: currentSubtest.id,
+          timeLimitSec: currentSubtest.timeLimitSec || null,
+          completedAt: Date.now(),
+          ...fields
+        }
+      ])
+      if (index + 1 < subtests.length) {
+        setIndex((prev) => prev + 1)
+        setPhase('instruction')
+      } else {
+        setPhase('done')
+      }
+    },
+    [currentSubtest, index, subtests.length]
+  )
+
+  // Vigilance only. No recorder is created and no transcription happens: the
+  // answer is when the patient tapped, not anything they said.
+  const runTapSequence = useCallback(
+    async (abandoned) => {
+      const distinctDigits = [...new Set(currentSubtest.sequence)]
+      await preloadDigits(distinctDigits)
+      if (abandoned()) return
+
+      tapsRef.current = []
+
+      await playDigitSequence(currentSubtest.sequence, {
+        intervalMs: currentSubtest.intervalMs,
+        leadInMs: currentSubtest.leadInMs,
+        onStart: () => {
+          if (abandoned()) return
+          // The origin for every tap offset. Set here rather than at Start,
+          // because the lead-in silence sits in between and a tap during it
+          // is not an answer to any digit.
+          sequenceStartedAtRef.current = Date.now()
+          setPhase('tapping')
+        }
+      })
+      if (abandoned()) return
+
+      setPhase('scoring')
+      const taps = tapsRef.current
+      const responseMs = Date.now() - sequenceStartedAtRef.current
+      const scoreResult = await scoreItem(currentSubtest.scorerId, '', {
+        taps,
+        sequence: currentSubtest.sequence,
+        target: currentSubtest.target,
+        intervalMs: currentSubtest.intervalMs,
+        referenceDate: new Date(),
+        ...sessionContext
+      })
+      if (abandoned()) return
+
+      completeSubtest(scoreResult, {
+        transcript: '',
+        // No ASR ran. SessionResults already renders `engine ?? '—'`.
+        engine: null,
+        responseMs
+      })
+    },
+    [currentSubtest, preloadDigits, playDigitSequence, scoreItem, sessionContext, completeSubtest]
+  )
 
   const beginSubtest = useCallback(async () => {
     // Each attempt claims a generation. Anything that abandons the current
@@ -43,6 +126,11 @@ export function useSubtestSession(
         if (abandoned()) return
       }
 
+      if (currentSubtest.responseMode === 'tap') {
+        await runTapSequence(abandoned)
+        return
+      }
+
       const recorder = createRecorder()
       await recorder.start()
       if (abandoned()) {
@@ -60,7 +148,7 @@ export function useSubtestSession(
       setError(err.message)
       setPhase('error')
     }
-  }, [currentSubtest, createRecorder, playAudio])
+  }, [currentSubtest, createRecorder, playAudio, runTapSequence])
 
   const finishRecording = useCallback(async () => {
     setPhase('scoring')
@@ -89,33 +177,12 @@ export function useSubtestSession(
         )
       }
 
-      setResults((prev) => [
-        ...prev,
-        // scoreResult spread first: the hook's own fields (subtestId,
-        // transcript, engine, completedAt) are authoritative and must not be
-        // overwritable by anything a scorer returns.
-        {
-          ...scoreResult,
-          subtestId: currentSubtest.id,
-          transcript,
-          engine,
-          responseMs,
-          timeLimitSec: currentSubtest.timeLimitSec || null,
-          completedAt: Date.now()
-        }
-      ])
-
-      if (index + 1 < subtests.length) {
-        setIndex((prev) => prev + 1)
-        setPhase('instruction')
-      } else {
-        setPhase('done')
-      }
+      completeSubtest(scoreResult, { transcript, engine, responseMs })
     } catch (err) {
       setError(err.message)
       setPhase('error')
     }
-  }, [currentSubtest, index, subtests.length, transcribeAudio, scoreItem, sessionContext])
+  }, [currentSubtest, transcribeAudio, scoreItem, sessionContext, completeSubtest])
 
   // Retire the in-flight attempt: bump the generation so its continuation
   // bails, and silence any file it left playing -- otherwise a skipped
@@ -123,7 +190,8 @@ export function useSubtestSession(
   const abandonAttempt = useCallback(() => {
     generationRef.current += 1
     if (stopAudio) stopAudio()
-  }, [stopAudio])
+    if (stopDigitSequence) stopDigitSequence()
+  }, [stopAudio, stopDigitSequence])
 
   const retryRecording = useCallback(() => {
     abandonAttempt()
@@ -157,6 +225,13 @@ export function useSubtestSession(
     }
   }, [abandonAttempt, currentSubtest, index, subtests.length])
 
+  // A no-op outside the tapping phase: a press during the lead-in or after
+  // the last window is not an answer to any digit, so it must not become one.
+  const recordTap = useCallback(() => {
+    if (phase !== 'tapping') return
+    tapsRef.current = [...tapsRef.current, Date.now() - sequenceStartedAtRef.current]
+  }, [phase])
+
   return {
     currentSubtest,
     phase,
@@ -165,6 +240,7 @@ export function useSubtestSession(
     beginSubtest,
     finishRecording,
     retryRecording,
-    skipSubtest
+    skipSubtest,
+    recordTap
   }
 }
