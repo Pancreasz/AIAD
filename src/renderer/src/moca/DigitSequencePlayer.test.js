@@ -55,9 +55,12 @@ describe('createDigitSequencePlayer', () => {
 
   it('rejects preload naming the file that failed', async () => {
     const { player } = setup({ failSrc: 'moca/audio/digit-5.mp3' })
-    const loaded = player.preload(['1', '5'])
+    // The assertion must subscribe BEFORE the timers run, or the rejection
+    // fires with no handler attached and vitest exits 1 on an unhandled
+    // rejection while every assertion still passes.
+    const assertion = expect(player.preload(['1', '5'])).rejects.toThrow('moca/audio/digit-5.mp3')
     await vi.advanceTimersByTimeAsync(1)
-    await expect(loaded).rejects.toThrow('moca/audio/digit-5.mp3')
+    await assertion
   })
 
   it('plays each digit at its scheduled onset with no accumulated drift', async () => {
@@ -149,7 +152,10 @@ describe('createDigitSequencePlayer', () => {
     await loaded
 
     player.play('1111', { intervalMs: 1000, leadInMs: 0 })
-    await vi.advanceTimersByTimeAsync(1999)
+    // Mid-way between the second and third digits. Advancing to exactly 2000
+    // would fire the third as well -- fake timers run a timer scheduled on the
+    // boundary -- which is a property of the clock, not of stop().
+    await vi.advanceTimersByTimeAsync(1500)
     expect(log).toHaveLength(2)
 
     player.stop()
