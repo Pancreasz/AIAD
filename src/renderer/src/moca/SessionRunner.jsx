@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSubtestSession } from './useSubtestSession.js'
 import { createAudioRecorder } from './AudioRecorder.js'
 import { createAudioPlayer } from './AudioPlayer.js'
+import { createDigitSequencePlayer } from './DigitSequencePlayer.js'
 import { SUBTESTS } from './subtests.js'
 import { SessionResults } from '../pages/SessionResults.jsx'
 
@@ -21,6 +22,10 @@ const ASR_LABELS = {
 // instance per render would be pointless churn.
 const audioPlayer = createAudioPlayer()
 
+// Module scope for the same reason audioPlayer is: it holds preloaded audio
+// elements, and rebuilding it per render would re-download every digit.
+const digitSequencePlayer = createDigitSequencePlayer()
+
 export function SessionRunner() {
   const {
     currentSubtest,
@@ -30,7 +35,8 @@ export function SessionRunner() {
     beginSubtest,
     finishRecording,
     retryRecording,
-    skipSubtest
+    skipSubtest,
+    recordTap
   } = useSubtestSession(
     SUBTESTS,
     {
@@ -40,7 +46,10 @@ export function SessionRunner() {
         window.api.scoreItem(subtestId, transcript, context),
       createRecorder: createAudioRecorder,
       playAudio: (src) => audioPlayer.play(src),
-      stopAudio: () => audioPlayer.stop()
+      stopAudio: () => audioPlayer.stop(),
+      preloadDigits: (digits) => digitSequencePlayer.preload(digits),
+      playDigitSequence: (sequence, options) => digitSequencePlayer.play(sequence, options),
+      stopDigitSequence: () => digitSequencePlayer.stop()
     },
     SESSION_CONTEXT
   )
@@ -60,6 +69,19 @@ export function SessionRunner() {
       clearInterval(interval)
     }
   }, [])
+
+  useEffect(() => {
+    if (phase !== 'tapping') return
+    const onKeyDown = (event) => {
+      if (event.code !== 'Space') return
+      // Otherwise the browser also treats it as a click on whatever is
+      // focused, double-counting a tap.
+      event.preventDefault()
+      recordTap()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [phase, recordTap])
 
   if (phase === 'done') {
     return <SessionResults results={results} subtests={SUBTESTS} />
@@ -107,6 +129,18 @@ export function SessionRunner() {
       )}
       {phase === 'recording' && <button onClick={finishRecording}>Stop &amp; Score</button>}
       {phase === 'scoring' && <p>Scoring...</p>}
+      {phase === 'tapping' && (
+        <>
+          {/* No progress indicator, no digit counter, no per-tap
+              acknowledgement: feedback would turn a sustained-attention task
+              into a tracking task, and showing how many digits remain gives
+              away how many targets are left. */}
+          <button className="tap-target" onClick={recordTap}>
+            TAP
+          </button>
+          <button onClick={skipSubtest}>Skip this subtest</button>
+        </>
+      )}
     </div>
   )
 }

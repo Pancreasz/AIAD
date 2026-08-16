@@ -185,3 +185,11 @@ code {
     height: 120px;
   }
 }
+
+.tap-target {
+  display: block;
+  width: 100%;
+  min-height: 40vh;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
