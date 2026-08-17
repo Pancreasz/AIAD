@@ -67,9 +67,30 @@ def start_loading():
     return thread
 
 
+# Constrained decoding for short, isolated clinical answers (digit span,
+# serial 7s). With faster-whisper's defaults this fine-tuned Thai model runs
+# away on a short clip -- it pads every clip to Whisper's 30s window and keeps
+# generating into the trailing silence, repeating the whole answer (a 5-digit
+# "21854" came back as "21854 21854 21854 21854") while the 6-step temperature
+# fallback re-decodes that runaway six times, taking ~150s and blowing the ASR
+# timeout. Measured on the digit stimulus, these four options together bring it
+# to a clean "21854" in ~10s, and leave connected speech (memory words, full
+# sentences) unchanged:
+#   temperature=0            -> one decode pass, not the 6-step fallback storm
+#   without_timestamps=True  -> stops generation running on into padded silence
+#   condition_on_previous_text=False -> no cross-segment repetition feedback
+#   no_repeat_ngram_size=3   -> blocks the verbatim loop outright
+DECODE_OPTIONS = dict(
+    temperature=0,
+    without_timestamps=True,
+    condition_on_previous_text=False,
+    no_repeat_ngram_size=3,
+)
+
+
 def _transcribe_sync(model, audio, language):
     """Run the model and drain its lazy segment generator, off the event loop."""
-    segments, _info = model.transcribe(audio, language=language)
+    segments, _info = model.transcribe(audio, language=language, **DECODE_OPTIONS)
     return "".join(segment.text for segment in segments).strip()
 
 
