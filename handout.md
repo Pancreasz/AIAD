@@ -2,7 +2,8 @@
 
 Continuing this project in a new Claude Code session? Start here.
 
-*Last updated 2026-08-16, after Serial 7s and Vigilance subtests landed.*
+*Last updated 2026-08-17, after Abstraction landed and the whole Attention section was verified
+with real audio.*
 
 ## What this project is
 
@@ -48,6 +49,12 @@ and Abstraction two, so screens outnumber MoCA subtests.
 - **Session pipeline:** `useSubtestSession` drives instruction → stimulus audio → record →
   transcribe → score → advance. Every dependency is injected, so tests never touch a real mic,
   real audio, or the network.
+- **Two response modalities.** Voice is the default. Vigilance sets `responseMode: 'tap'`, which
+  takes a different path through the same hook: no recorder, no transcription, a `tapping` phase,
+  and taps carried to the scorer on the `context` argument with `transcript: ''`. A subtest without
+  `responseMode` is untouched by any of it.
+- **`SessionResults` has a Process data column** showing vigilance hits, misses, false taps and
+  mean reaction time. `responseMs` is deliberately excluded from it — see the constraints below.
 
 ### Read these if you need depth
 
@@ -55,6 +62,8 @@ and Abstraction two, so screens outnumber MoCA subtests.
 |---|---|
 | `docs/superpowers/specs/2026-08-13-local-asr-faster-whisper-design.md` | Why local ASR, why a sidecar, the fallback policy |
 | `docs/superpowers/specs/2026-08-15-memory-delayed-recall-design.md` | Memory subtest, stimulus audio, Skip semantics |
+| `docs/superpowers/specs/2026-08-16-vigilance-tap-design.md` | The tap modality, window scoring, why strict windows were kept |
+| `docs/superpowers/plans/2026-08-16-vigilance-tap.md` | How vigilance was built, task by task |
 | `docs/superpowers/plans/2026-08-15-local-asr-verification-notes.md` | Measured sidecar numbers and remaining manual steps |
 | `docs/moca-audio-recording-script.md` | Every voice line, recorded and unrecorded |
 
@@ -69,7 +78,7 @@ the user.
 npm install          # if node_modules is missing
 npm run setup:asr    # ONE TIME: builds sidecar/.venv and downloads the 1.6 GB model
 npm run dev          # launch the app
-npm test             # 192 Vitest tests
+npm test             # 219 Vitest tests
 npm run test:asr     # 10 pytest tests (the Python sidecar)
 npm run test:all     # both
 npm run build        # verify main/preload/renderer compile
@@ -113,17 +122,39 @@ user profile. No network call happens at transcription time.
    one-second window a tap landed in. Do not "simplify" this into a single recording — the
    onsets would become hand-measured estimates that need re-measuring on every re-record.
 
+7. **The audio files are QuickTime containers named `.mp3`.** Every one of them, including the
+   ones recorded months apart. Chromium plays them fine because it sniffs content rather than
+   extension, so this is the project's convention, not a bug — but an MP3 frame parser will
+   return nonsense on them. Read duration from the `mvhd` box instead.
+
+8. **The digit recordings overrun their slot, and the player absorbs it.** They run 1088–1344 ms
+   against a 1000 ms interval. `DigitSequencePlayer` silences the sounding digit the moment the
+   next one starts, so an over-long file loses its own tail rather than smearing into its
+   neighbour. Do not remove that cut in the belief the files are short enough — they are not.
+   Their lead-in is ~21 ms, which is the end that actually matters: leading silence would be
+   scored as the patient's reaction time and nothing can detect it.
+
+9. **Abstraction has an accept-list and no reject-list, on purpose.** `เป็นพาหนะที่มีล้อ`
+   ("vehicles that have wheels") is a correct abstract answer carrying a concrete detail. A
+   reject-list for "wheels" would strip a point the patient earned. The answers MoCA rejects share
+   no vocabulary with the ones it accepts, so the accept-list cannot make that mistake. A test
+   pins this case; do not "harden" it by adding rejections.
+
 ## What is verified, and what is not
 
 **Verified end to end with real speech:** Digit Span backward transcribed `สองสี่เจ็ด` and scored
 1/1 on the local engine. The sidecar loads the model in ~7.6s and `/health` stays responsive
 during inference.
 
-**All 21 audio files for the built subtests now exist**, so Serial 7s and Vigilance both run for
-real. Vigilance has been through a live run: the space bar registered, the taps scored, and the
-result reported 1/1 with its hit/miss counts. **Abstraction is the one now waiting on audio** —
-`instr-abstraction-1.mp3` and `instr-abstraction-2.mp3` are unrecorded, so both items reach the
-error screen and can be skipped.
+**Vigilance is verified with real audio and a real run.** The space bar registered, the taps
+scored, and the result reported 1/1 with its hit and miss counts. That was the first end-to-end
+proof of the tap modality.
+
+**21 of the 23 referenced audio files exist.** The two missing are
+`instr-abstraction-1.mp3` and `instr-abstraction-2.mp3`, so **Abstraction is built and tested but
+unreachable** — both items hit the error screen and can be skipped. To check this yourself, pull
+every `moca/audio/...` path out of `subtests.js`, add one `digit-N.mp3` per distinct digit in
+`VIGILANCE_SEQUENCE`, and test each for existence; the docs are not the authority, the code is.
 
 **Not verified:** a full eleven-screen run; delayed recall accuracy on real speech (the `หน้า`
 accepted-variant list includes tonal homophones `น่า`/`นา` as a deliberate gamble, unvalidated);
@@ -169,14 +200,21 @@ Whisper into worst-case decoding — treat ~3-4× realtime as pessimistic and un
   challenges as evidence the feature classes are sound.
 - **`responseMs` measures mic-open duration**, which includes operator reaction time on the Stop
   button. Fine for debugging; not clean enough to treat as a biomarker without auto-stop on
-  silence or speech-end detection.
+  silence or speech-end detection. It is deliberately kept out of the results page's Process data
+  column so nobody compares it against vigilance's real reaction times.
+- **Vigilance's `tapLatencies` is the one clean signal so far** — measured from each target
+  digit's own scheduled onset, so it is a genuine reaction time rather than an interval that
+  happens to contain one.
+- **Screen text and instruction audio must say the same thing.** A patient who hears one
+  instruction and reads another has been set a second task nobody intended, and on these subtests
+  that shows up as a cognitive deficit. Changing `instructionTextTh` means re-recording that file.
 
 ## Outstanding
 
-- **The push to `https://github.com/Pancreasz/AIAD.git` never happened.** The remote is
-  configured as `origin`, but the GitHub token is expired and this session's permission
-  classifier blocks `git push`. Run `gh auth login -h github.com` then `git push -u origin main`
-  manually, or grant the permission.
+- **The push works and the repo is up to date.** `git push` succeeds: git's own credentials live
+  in Windows Credential Manager and are healthy. The **`gh` CLI token is separately expired** —
+  `gh auth status` fails, so `gh` commands (PRs, issues) need `gh auth login -h github.com` first.
+  Plain `git push` does not. The earlier note claiming the push had never happened was wrong.
 - **Note the repo contains MoCA-derived material** — the Thai word list, digit sequences,
   instruction text, animal drawings, and audio recordings. The MoCA is copyrighted by MoCA Test
   Inc. The user was informed and chose to proceed; flagged here only so it is not a surprise.
