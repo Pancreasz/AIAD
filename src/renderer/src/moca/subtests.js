@@ -29,6 +29,8 @@ const INSTR = {
   digitBackward: 'moca/audio/instr-digit-backward.mp3',
   vigilance: 'moca/audio/instr-vigilance.mp3',
   serialSevens: 'moca/audio/instr-serial-sevens.mp3',
+  abstraction1: 'moca/audio/instr-abstraction-1.mp3',
+  abstraction2: 'moca/audio/instr-abstraction-2.mp3',
   delayedRecall: 'moca/audio/instr-delayed-recall.mp3',
   orientation: 'moca/audio/instr-orientation.mp3'
 }
@@ -162,6 +164,38 @@ export const SUBTESTS = [
     // No `audio`: unlike Digit Span and Memory there is no stimulus to play.
     // The starting number lives in the instruction, and the scorer's own
     // START_VALUE is the single source of truth for 100.
+  },
+  {
+    id: 'abstraction-1',
+    // Distinct from item 2's section: SessionResults labels rows by section,
+    // and two rows both reading "Abstraction" would be unreadable.
+    section: 'Abstraction (1)',
+    // The worked example is part of the instruction, not a scored item. It
+    // teaches the patient that an abstract category is wanted; without it,
+    // people answer with a shared physical feature and score 0 for
+    // misunderstanding the task rather than for failing it.
+    instructionTextEn:
+      'Tell me how two things are alike. For example, a banana and an orange are both fruit. Now: a train and a bicycle?',
+    instructionTextTh:
+      'บอกว่าของสองสิ่งเหมือนกันอย่างไร ตัวอย่างเช่น กล้วยกับส้ม เป็นผลไม้ทั้งคู่ ทีนี้ รถไฟกับจักรยาน?',
+    countdownSec: 0,
+    timeLimitSec: 30,
+    scorerId: 'abstraction-1',
+    instructionAudio: INSTR.abstraction1
+    // No `audio`: the pair is named in the instruction, so there is nothing
+    // separate to play.
+  },
+  {
+    id: 'abstraction-2',
+    section: 'Abstraction (2)',
+    // No example this time -- it was given once and repeating it would prompt
+    // the patient toward the kind of answer being measured.
+    instructionTextEn: 'And how are a watch and a ruler alike?',
+    instructionTextTh: 'แล้วนาฬิกากับไม้บรรทัดเหมือนกันอย่างไร?',
+    countdownSec: 0,
+    timeLimitSec: 30,
+    scorerId: 'abstraction-2',
+    instructionAudio: INSTR.abstraction2
   },
   {
     id: 'delayed-recall',

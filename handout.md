@@ -14,9 +14,8 @@ innovation competition, <1 month timeline starting 2026-08-13.
 
 ## Current state
 
-**7 of 13 subtests, 20 of 30 points.** 192 JS tests + 10 Python tests, all passing, build clean.
-The vigilance work lives on branch `feat/vigilance-tap` and is not yet merged to `main`.
-Working tree clean.
+**8 of 13 subtests, 22 of 30 points.** 219 JS tests + 10 Python tests, all passing, build clean.
+Everything is merged to `main` and pushed to `origin`. Working tree clean.
 
 | Built | Points | Notes |
 |---|---|---|
@@ -27,10 +26,14 @@ Working tree clean.
 | Orientation | 6 | Buddhist Era year |
 | Serial 7s | 3 | scored on the non-linear band table, against what the patient said |
 | Vigilance | 1 | 29 digits at 1/sec, tap on 1 — the only non-voice subtest |
+| Abstraction ×2 | 2 | accept-list only; a reject-list would strip correct answers |
 
-**Not built (6 subtests, 10 points):** sentence repetition (2), verbal fluency (1),
-abstraction (2) — 5 voice points. Plus Trail Making (1), Cube copy (1), Clock Drawing (3) —
-**the pen/Wacom subtests are being done by the user's teammates, not here.**
+**Not built (5 subtests, 8 points):** sentence repetition (2), verbal fluency (1) — 3 voice
+points. Plus Trail Making (1), Cube copy (1), Clock Drawing (3) — **the pen/Wacom subtests are
+being done by the user's teammates, not here.**
+
+The session now runs **eleven screens**: Memory registration and Digit Span contribute two each,
+and Abstraction two, so screens outnumber MoCA subtests.
 
 ### Architecture as built
 
@@ -116,27 +119,29 @@ user profile. No network call happens at transcription time.
 1/1 on the local engine. The sidecar loads the model in ~7.6s and `/health` stays responsive
 during inference.
 
-**Fully coded and tested but never run with real audio:** Serial 7s and Vigilance are implemented,
-tested, and reach the error screen gracefully when stimulus files are missing. Both will pass all
-tests indefinitely without audio, because their recording dependencies do not exist yet — they are
-not verified end to end.
+**All 21 audio files for the built subtests now exist**, so Serial 7s and Vigilance both run for
+real. Vigilance has been through a live run: the space bar registered, the taps scored, and the
+result reported 1/1 with its hit/miss counts. **Abstraction is the one now waiting on audio** —
+`instr-abstraction-1.mp3` and `instr-abstraction-2.mp3` are unrecorded, so both items reach the
+error screen and can be skipped.
 
-**Not verified:** a full nine-subtest run; delayed recall accuracy on real speech (the `หน้า`
+**Not verified:** a full eleven-screen run; delayed recall accuracy on real speech (the `หน้า`
 accepted-variant list includes tonal homophones `น่า`/`นา` as a deliberate gamble, unvalidated);
 real-speech latency per subtest. My only latency measurement used a synthetic tone, which pushes
 Whisper into worst-case decoding — treat ~3-4× realtime as pessimistic and unproven.
 
 ## Next steps, in order
 
-1. **Abstraction (2 pts)** — cheapest remaining points. Instruction-only,
-   no new recordings, straight extension of the proven pipeline. Same shape as the existing
-   scorers in `src/main/scoring/`.
-2. **Sentence repetition (2 pts)** — needs new stimulus recordings. The
+1. **Record `instr-abstraction-1.mp3` and `instr-abstraction-2.mp3`** — the only unrecorded files
+   left. Abstraction is built and tested but unreachable until they exist. Part 4 of
+   `docs/moca-audio-recording-script.md` has the exact lines; the banana-and-orange example must
+   stay in the first one.
+2. **Verbal fluency (1 pt)** — cheapest remaining, and the only subtest in the app with a real
+   normed deadline: exactly 60 seconds, against the "≥11 words" cutoff. Needs the timer work no
+   other subtest has required.
+3. **Sentence repetition (2 pts)** — needs new stimulus recordings. The
    sentences must come from the user's Thai form; they are not in this repo.
    `docs/moca-audio-recording-script.md` explains the recording conventions.
-3. **Audio gap:** `instr-serial-sevens.mp3`, `instr-vigilance.mp3`, and `digit-0..9.mp3` are all
-   unrecorded, so both new Attention subtests (Serial 7s and Vigilance) reach the error screen
-   until they exist.
 4. **A settings screen** for `place`/`province`, currently hardcoded in `SessionRunner.jsx` as
    `SESSION_CONTEXT`.
 5. **Biomarker layer** — genuinely blocked until pilot sessions produce data. `responseMs` and

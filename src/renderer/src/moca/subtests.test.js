@@ -47,6 +47,45 @@ describe('SUBTESTS', () => {
     expect(vigilance.audio).toBeUndefined()
   })
 
+  it('includes both Abstraction items, each worth its own point', () => {
+    const ids = SUBTESTS.map((s) => s.id)
+    expect(ids).toContain('abstraction-1')
+    expect(ids).toContain('abstraction-2')
+  })
+
+  // SessionResults labels rows by section, so two rows both reading
+  // "Abstraction" would be indistinguishable to anyone reading the output --
+  // the same reason the two memory trials carry distinct sections.
+  it('gives the two Abstraction items distinguishable section labels', () => {
+    const sections = SUBTESTS.filter((s) => s.id.startsWith('abstraction')).map((s) => s.section)
+    expect(new Set(sections).size).toBe(2)
+  })
+
+  it('asks Abstraction after Serial 7s and before Delayed Recall, as the instrument does', () => {
+    const ids = SUBTESTS.map((s) => s.id)
+    expect(ids.indexOf('abstraction-1')).toBeGreaterThan(ids.indexOf('serial-sevens'))
+    expect(ids.indexOf('abstraction-2')).toBeGreaterThan(ids.indexOf('abstraction-1'))
+    expect(ids.indexOf('delayed-recall')).toBeGreaterThan(ids.indexOf('abstraction-2'))
+  })
+
+  // The banana-orange example teaches the patient what kind of answer is
+  // wanted. Without it people give concrete answers and score 0 for not
+  // understanding the task rather than for failing it, so it must reach them
+  // even in a session run with the sound off.
+  it('carries the worked example in the first item’s instruction text', () => {
+    const first = SUBTESTS.find((s) => s.id === 'abstraction-1')
+    expect(first.instructionTextTh).toContain('กล้วย')
+    expect(first.instructionTextTh).toContain('ส้ม')
+  })
+
+  it('gives each Abstraction item its own instruction recording and no stimulus', () => {
+    for (const id of ['abstraction-1', 'abstraction-2']) {
+      const subtest = SUBTESTS.find((s) => s.id === id)
+      expect(subtest.instructionAudio).toBe(`moca/audio/instr-${id}.mp3`)
+      expect(subtest.audio).toBeUndefined()
+    }
+  })
+
   // A scorerId that does not match any registered scorer is invisible until a
   // patient reaches that subtest mid-session and the run dies on it. This
   // catches the typo at build time instead.

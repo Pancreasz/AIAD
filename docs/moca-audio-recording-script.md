@@ -195,6 +195,43 @@ dropped or added digit; nothing but your eyes catches a transposed one.
 
 ---
 
+## Part 4 — Abstraction (built, needs audio)
+
+Two files. The patient says how two things are alike, and scores a point per pair for naming an
+abstract category rather than a shared physical feature.
+
+### `instr-abstraction-1.mp3`
+
+> บอกว่าของสองสิ่งเหมือนกันอย่างไร ตัวอย่างเช่น กล้วยกับส้ม เป็นผลไม้ทั้งคู่ ทีนี้ รถไฟกับจักรยาน?
+
+**The banana-and-orange example is part of the recording, and it matters more than it looks.** It
+is the only thing that tells the patient an abstract answer is wanted. Without it people reach for
+a shared physical feature — "they both have wheels" — which scores nothing, so they lose the point
+for misunderstanding the task rather than for failing it. Read the example at the same
+conversational pace as the question; do not stress it, and do not pause long enough after it to
+invite an answer.
+
+### `instr-abstraction-2.mp3`
+
+> แล้วนาฬิกากับไม้บรรทัดเหมือนกันอย่างไร?
+
+No example this time. It was given once, and repeating it here would prompt the patient toward the
+very kind of answer being measured.
+
+### What scores, so you can sanity-check a real run
+
+| Pair | Scores | Scores nothing |
+|---|---|---|
+| รถไฟ – จักรยาน | ยานพาหนะ, พาหนะ, ขนส่ง, เดินทาง | มีล้อ ("they have wheels") |
+| นาฬิกา – ไม้บรรทัด | เครื่องมือวัด, เครื่องวัด, การวัด, วัด | มีตัวเลข ("they have numbers") |
+
+An abstract answer that also mentions a concrete detail still scores — `เป็นพาหนะที่มีล้อ` is a
+correct answer with a detail attached, not a wrong one. If real speech turns up an accepted answer
+the app scores zero, the accepted-term lists in `src/main/scoring/abstraction.js` are the place to
+add it.
+
+---
+
 ## Audio needed by subtests not yet built
 
 Not required now — listed so you can plan a single recording session rather than several.

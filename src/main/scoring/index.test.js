@@ -51,6 +51,15 @@ describe('scoreItem', () => {
     expect(result).toMatchObject({ score: 1, maxScore: 1, hits: 1 })
   })
 
+  // Both abstraction items share a scorer, so the dispatch has to carry which
+  // pair was asked -- otherwise the watch/ruler answer would score the
+  // train/bicycle item.
+  it('dispatches each abstraction item against its own accepted terms', () => {
+    expect(scoreItem('abstraction-1', 'ยานพาหนะ', {})).toMatchObject({ score: 1, maxScore: 1 })
+    expect(scoreItem('abstraction-2', 'เครื่องมือวัด', {})).toMatchObject({ score: 1, maxScore: 1 })
+    expect(scoreItem('abstraction-2', 'ยานพาหนะ', {})).toMatchObject({ score: 0 })
+  })
+
   it('throws for an unknown subtest id', () => {
     expect(() => scoreItem('unknown-subtest', 'text', {})).toThrow(
       'No scorer registered for subtest "unknown-subtest"'
