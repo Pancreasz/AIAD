@@ -54,8 +54,10 @@ describe('useSubtestSession', () => {
       await result.current.finishRecording()
     })
 
-    expect(result.current.currentSubtest.id).toBe('orientation')
-    expect(result.current.phase).toBe('instruction')
+    // Scoring lands on the "Success" screen; the result is recorded but the
+    // session waits for continueToNext before advancing.
+    expect(result.current.phase).toBe('complete')
+    expect(result.current.currentSubtest.id).toBe('naming')
     expect(result.current.results).toHaveLength(1)
     expect(result.current.results[0]).toMatchObject({
       subtestId: 'naming',
@@ -63,9 +65,16 @@ describe('useSubtestSession', () => {
       maxScore: 3,
       engine: 'local'
     })
+
+    act(() => {
+      result.current.continueToNext()
+    })
+
+    expect(result.current.currentSubtest.id).toBe('orientation')
+    expect(result.current.phase).toBe('instruction')
   })
 
-  it('sets phase to done after the last subtest is scored', async () => {
+  it('sets phase to done after the last subtest is scored and continued', async () => {
     const deps = setup()
     const { result } = renderHook(() => useSubtestSession([subtests[1]], deps))
 
@@ -73,9 +82,36 @@ describe('useSubtestSession', () => {
       await result.current.beginSubtest()
       await result.current.finishRecording()
     })
+    expect(result.current.phase).toBe('complete')
+
+    act(() => {
+      result.current.continueToNext()
+    })
 
     expect(result.current.phase).toBe('done')
     expect(result.current.results).toHaveLength(1)
+  })
+
+  it('resetSession clears results and returns to the first subtest', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(subtests, deps))
+
+    await act(async () => {
+      await result.current.beginSubtest()
+      await result.current.finishRecording()
+    })
+    act(() => {
+      result.current.continueToNext()
+    })
+    expect(result.current.currentSubtest.id).toBe('orientation')
+
+    act(() => {
+      result.current.resetSession()
+    })
+
+    expect(result.current.currentSubtest.id).toBe('naming')
+    expect(result.current.phase).toBe('instruction')
+    expect(result.current.results).toHaveLength(0)
   })
 
   it('merges sessionContext (e.g. place/province) and a fresh referenceDate into the scoring context', async () => {
@@ -102,7 +138,9 @@ describe('useSubtestSession', () => {
   it('moves to the error phase and exposes the message when transcribeAudio rejects', async () => {
     const deps = setup()
     deps.transcribeAudio.mockRejectedValue(
-      new Error('Transcription failed.\n  local:  boom\n  openai: cloud fallback disabled (MOCA_ALLOW_CLOUD_FALLBACK=false)')
+      new Error(
+        'Transcription failed.\n  local:  boom\n  openai: cloud fallback disabled (MOCA_ALLOW_CLOUD_FALLBACK=false)'
+      )
     )
     const { result } = renderHook(() => useSubtestSession(subtests, deps))
 
@@ -147,7 +185,9 @@ describe('useSubtestSession', () => {
 })
 
 describe('useSubtestSession stimulus playback', () => {
-  const withAudio = [{ id: 'digit-span-forward', scorerId: 'digit-span-forward', audio: 'digits.mp3' }]
+  const withAudio = [
+    { id: 'digit-span-forward', scorerId: 'digit-span-forward', audio: 'digits.mp3' }
+  ]
   const withoutAudio = [{ id: 'orientation', scorerId: 'orientation' }]
 
   it('plays the stimulus to completion BEFORE opening the microphone', async () => {
@@ -204,6 +244,61 @@ describe('useSubtestSession stimulus playback', () => {
     const { completedAt } = result.current.results[0]
     expect(typeof completedAt).toBe('number')
     expect(completedAt).toBeGreaterThanOrEqual(before)
+  })
+})
+
+describe('useSubtestSession countdown', () => {
+  const counted = [
+    { id: 'naming', scorerId: 'naming', instructionAudio: 'instr.mp3', countdownSec: 3 }
+  ]
+
+  it('counts down after the guidance and before opening the mic, then clears', async () => {
+    const deps = setup()
+    // Immediate delay so the count runs without real timers.
+    deps.delay = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() => useSubtestSession(counted, deps))
+
+    await act(async () => {
+      await result.current.beginSubtest()
+    })
+
+    // Guidance played, then 3 counts + the "Start!" flash = 4 delays.
+    expect(deps.playAudio).toHaveBeenCalledWith('instr.mp3')
+    expect(deps.delay).toHaveBeenCalledTimes(4)
+    expect(result.current.phase).toBe('recording')
+    expect(result.current.countdownValue).toBeNull()
+  })
+
+  it('does not open the mic if abandoned during the countdown', async () => {
+    const deps = setup()
+    // Resolve guidance immediately so the run reaches the countdown at once.
+    deps.playAudio = vi.fn().mockResolvedValue(undefined)
+    let releaseCount
+    // Hold the first count open so we can skip mid-countdown.
+    deps.delay = vi.fn().mockImplementation(() => new Promise((r) => (releaseCount = r)))
+    const { result } = renderHook(() => useSubtestSession(counted, deps))
+
+    let pending
+    await act(async () => {
+      pending = result.current.beginSubtest()
+      // Flush the guidance-audio microtasks so the countdown has begun.
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(result.current.phase).toBe('countdown')
+
+    act(() => {
+      result.current.skipSubtest()
+    })
+
+    await act(async () => {
+      releaseCount()
+      await pending
+    })
+
+    expect(deps.createRecorder).not.toHaveBeenCalled()
+    expect(result.current.results[0]).toMatchObject({ subtestId: 'naming', skipped: true })
   })
 })
 
@@ -326,12 +421,15 @@ describe('useSubtestSession abandoned playback', () => {
     { id: 'orientation', scorerId: 'orientation', instructionAudio: 'instr-orientation.mp3' }
   ]
 
-  it('does not let a skipped subtest\'s playback open the mic on the NEXT subtest', async () => {
+  it("does not let a skipped subtest's playback open the mic on the NEXT subtest", async () => {
     const deps = setup()
     // A stimulus we control, so we can skip while it is still playing.
     let releaseAudio
     deps.playAudio.mockImplementation(
-      () => new Promise((resolve) => { releaseAudio = resolve })
+      () =>
+        new Promise((resolve) => {
+          releaseAudio = resolve
+        })
     )
 
     const { result } = renderHook(() => useSubtestSession(twoSubtests, deps))
@@ -623,7 +721,11 @@ describe('useSubtestSession in tap mode', () => {
       deps.releaseSequence()
     })
 
-    expect(deps.scoreItem).toHaveBeenCalledWith('vigilance', '', expect.objectContaining({ taps: [] }))
+    expect(deps.scoreItem).toHaveBeenCalledWith(
+      'vigilance',
+      '',
+      expect.objectContaining({ taps: [] })
+    )
   })
 
   it('records the result with no transcript and no engine', async () => {
@@ -641,7 +743,7 @@ describe('useSubtestSession in tap mode', () => {
       deps.releaseSequence()
     })
 
-    expect(result.current.phase).toBe('done')
+    expect(result.current.phase).toBe('complete')
     expect(result.current.results[0]).toMatchObject({
       subtestId: 'vigilance',
       score: 1,
@@ -649,6 +751,11 @@ describe('useSubtestSession in tap mode', () => {
       transcript: '',
       engine: null
     })
+
+    act(() => {
+      result.current.continueToNext()
+    })
+    expect(result.current.phase).toBe('done')
   })
 
   it('cancels the sequence when the subtest is skipped mid-run', async () => {
@@ -697,7 +804,9 @@ describe('useSubtestSession in tap mode', () => {
 
   it('routes a preload failure to the error phase rather than a silent skip', async () => {
     const deps = setupTap()
-    deps.preloadDigits.mockRejectedValue(new Error('Failed to load digit audio: moca/audio/digit-3.mp3'))
+    deps.preloadDigits.mockRejectedValue(
+      new Error('Failed to load digit audio: moca/audio/digit-3.mp3')
+    )
     const { result } = renderHook(() => useSubtestSession([tapSubtest], deps))
 
     await act(async () => {

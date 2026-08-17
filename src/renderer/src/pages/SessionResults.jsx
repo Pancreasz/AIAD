@@ -13,7 +13,8 @@ function formatGap(ms) {
 // score would measure nothing.
 function registrationHappened(results) {
   return results.some(
-    (r) => typeof r.subtestId === 'string' && r.subtestId.startsWith('memory-registration') && !r.skipped
+    (r) =>
+      typeof r.subtestId === 'string' && r.subtestId.startsWith('memory-registration') && !r.skipped
   )
 }
 
@@ -59,7 +60,7 @@ function processData(result) {
   return `${counts} · ${mean} ms mean`
 }
 
-export function SessionResults({ results, subtests }) {
+export function SessionResults({ results, subtests, onRestart }) {
   const total = results.reduce(
     (sum, r) => (isUnscorableRecall(r, results) ? sum : sum + r.score),
     0
@@ -73,60 +74,86 @@ export function SessionResults({ results, subtests }) {
 
   return (
     <div className="session-results">
-      <h2>MoCA Session Results</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Subtest</th>
-            <th>Score</th>
-            <th>Engine</th>
-            <th>Process data</th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.map((r) => {
-            const subtest = subtests.find((s) => s.id === r.subtestId)
-            // MoCA awards no points for memory registration, so those rows
-            // report the count as information rather than as a score.
-            const unscored = r.maxScore === 0 && r.recalledCount !== undefined
-            const unscorableRecall = isUnscorableRecall(r, results)
-            return (
-              <tr key={r.subtestId}>
-                <td>{subtest ? subtest.section : r.subtestId}</td>
-                <td>
-                  {r.skipped
-                    ? 'skipped'
-                    : unscorableRecall
-                      ? 'not scorable — words never presented'
-                      : unscored
-                        ? `${r.recalledCount} of 5 recalled`
-                        : `${r.score} / ${r.maxScore}`}
-                </td>
-                <td>{r.engine ?? '—'}</td>
-                {/* Empty rather than a dash: a subtest that produces no process
-                    data is not missing a value, and a dash here would also
-                    collide with the engine column's own placeholder. */}
-                <td className="process-data">{processData(r)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-      <p className="total">
-        Total: {total} / {maxTotal}
-      </p>
-      {skippedCount > 0 && (
-        <p className="skipped-note">
-          {skippedCount} subtest{skippedCount === 1 ? '' : 's'} not administered — this total is
-          incomplete
+      <header className="results-header">
+        <h2>MoCA Session Results</h2>
+        <p className="results-total">
+          <span className="results-total__value">
+            Total: {total} / {maxTotal}
+          </span>
         </p>
-      )}
-      {interval && (
-        <p className="recall-interval">
-          Delayed recall after {interval.text}
-          {interval.short && ' — under the 5 minute protocol interval, so this score is not comparable to published norms'}
-        </p>
-      )}
+      </header>
+
+      <div className="results-table-wrap">
+        <table className="results-table">
+          <thead>
+            <tr>
+              <th className="col-subtest">Subtest</th>
+              <th className="col-score">Score</th>
+              <th className="col-engine">Engine</th>
+              <th className="col-process">Process data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((r) => {
+              const subtest = subtests.find((s) => s.id === r.subtestId)
+              // MoCA awards no points for memory registration, so those rows
+              // report the count as information rather than as a score.
+              const unscored = r.maxScore === 0 && r.recalledCount !== undefined
+              const unscorableRecall = isUnscorableRecall(r, results)
+              const rowClass = r.skipped
+                ? 'row--skipped'
+                : unscorableRecall
+                  ? 'row--unscorable'
+                  : ''
+              return (
+                <tr key={r.subtestId} className={rowClass}>
+                  <td className="col-subtest">{subtest ? subtest.section : r.subtestId}</td>
+                  <td className="col-score">
+                    {r.skipped ? (
+                      <span className="pill pill--skipped">skipped</span>
+                    ) : unscorableRecall ? (
+                      <span className="pill pill--warn">not scorable — words never presented</span>
+                    ) : unscored ? (
+                      <span className="pill pill--info">{r.recalledCount} of 5 recalled</span>
+                    ) : (
+                      <span className="score-value">
+                        {r.score} / {r.maxScore}
+                      </span>
+                    )}
+                  </td>
+                  <td className="col-engine">{r.engine ?? '—'}</td>
+                  {/* Empty rather than a dash: a subtest that produces no process
+                      data is not missing a value, and a dash here would also
+                      collide with the engine column's own placeholder. */}
+                  <td className="col-process process-data">{processData(r)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="results-notes">
+        {skippedCount > 0 && (
+          <p className="note note--warn skipped-note">
+            {skippedCount} subtest{skippedCount === 1 ? '' : 's'} not administered — this total is
+            incomplete
+          </p>
+        )}
+        {interval && (
+          <p className={`note recall-interval${interval.short ? ' note--warn' : ' note--ok'}`}>
+            Delayed recall after {interval.text}
+            {interval.short &&
+              ' — under the 5 minute protocol interval, so this score is not comparable to published norms'}
+          </p>
+        )}
+      </div>
+
+      <div className="results-actions">
+        <button className="btn btn--primary btn--lg" onClick={onRestart}>
+          ↻ Restart from the first test
+        </button>
+      </div>
     </div>
   )
 }

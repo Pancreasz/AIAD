@@ -22,3 +22,7 @@ pyproject.toml
 uv.lock
 
 screenshots/
+# Claude Code
+# .claude/
+# CLAUDE.md
+# graphify-out/

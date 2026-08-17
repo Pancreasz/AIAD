@@ -1,5 +1,13 @@
 import { useState, useCallback, useRef } from 'react'
 
+// Real countdown/"Start!" pacing. Injected so tests can run instantly and so a
+// slow machine's timer drift never changes what a subtest measures.
+const defaultDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// How long the big "เริ่ม! / Start!" flashes after the count reaches zero,
+// before the mic opens or the digit sequence begins.
+const START_FLASH_MS = 600
+
 export function useSubtestSession(
   subtests,
   {
@@ -10,7 +18,8 @@ export function useSubtestSession(
     stopAudio,
     preloadDigits,
     playDigitSequence,
-    stopDigitSequence
+    stopDigitSequence,
+    delay = defaultDelay
   },
   sessionContext = {}
 ) {
@@ -18,6 +27,9 @@ export function useSubtestSession(
   const [phase, setPhase] = useState('instruction')
   const [results, setResults] = useState([])
   const [error, setError] = useState(null)
+  // The big number shown during the pre-response countdown. `0` is the "Start!"
+  // flash; `null` means no countdown is running.
+  const [countdownValue, setCountdownValue] = useState(null)
   const recorderRef = useRef(null)
   const generationRef = useRef(0)
   const recordingStartedAtRef = useRef(null)
@@ -25,10 +37,13 @@ export function useSubtestSession(
   const sequenceStartedAtRef = useRef(null)
 
   const currentSubtest = subtests[index]
+  const isLastSubtest = index + 1 >= subtests.length
 
-  // Both modalities end the same way: append a result, then advance or finish.
-  // The hook's own fields are written after the scorer's spread so a scorer
-  // can never overwrite subtestId, transcript, or engine.
+  // Append a result and pause on the "Success" screen. Advancing is a separate
+  // step (continueToNext) so the operator/patient sees the subtest landed
+  // before the next one begins. The hook's own fields are written after the
+  // scorer's spread so a scorer can never overwrite subtestId, transcript, or
+  // engine.
   const completeSubtest = useCallback(
     (scoreResult, fields) => {
       setResults((prev) => [
@@ -41,14 +56,44 @@ export function useSubtestSession(
           ...fields
         }
       ])
-      if (index + 1 < subtests.length) {
-        setIndex((prev) => prev + 1)
-        setPhase('instruction')
-      } else {
-        setPhase('done')
-      }
+      setPhase('complete')
     },
-    [currentSubtest, index, subtests.length]
+    [currentSubtest]
+  )
+
+  // Leave the "Success" screen for the next subtest, or the results if this was
+  // the last one.
+  const continueToNext = useCallback(() => {
+    setCountdownValue(null)
+    if (index + 1 < subtests.length) {
+      setIndex((prev) => prev + 1)
+      setPhase('instruction')
+    } else {
+      setPhase('done')
+    }
+  }, [index, subtests.length])
+
+  // The pre-response countdown: a big 3-2-1 after the voice guidance ends, then
+  // a "Start!" flash, then the caller opens the mic or starts the digit
+  // sequence. Returns false if the attempt was abandoned mid-count, so the
+  // caller bails instead of proceeding for a subtest nobody is on any more.
+  const runCountdown = useCallback(
+    async (seconds, abandoned) => {
+      if (!seconds) return true
+      setPhase('countdown')
+      for (let n = seconds; n >= 1; n--) {
+        setCountdownValue(n)
+        await delay(1000)
+        if (abandoned()) return false
+      }
+      // Zero is the "Start!" flash rather than a shown digit.
+      setCountdownValue(0)
+      await delay(START_FLASH_MS)
+      if (abandoned()) return false
+      setCountdownValue(null)
+      return true
+    },
+    [delay]
   )
 
   // Vigilance only. No recorder is created and no transcription happens: the
@@ -129,6 +174,7 @@ export function useSubtestSession(
   // stimulus keeps sounding over the next subtest.
   const abandonAttempt = useCallback(() => {
     generationRef.current += 1
+    setCountdownValue(null)
     if (stopAudio) stopAudio()
     if (stopDigitSequence) stopDigitSequence()
   }, [stopAudio, stopDigitSequence])
@@ -160,6 +206,10 @@ export function useSubtestSession(
         if (abandoned()) return
       }
 
+      // Countdown after the voice guidance ends, before any response is
+      // recorded. Skipped entirely when a subtest declares no countdown.
+      if (!(await runCountdown(currentSubtest.countdownSec, abandoned))) return
+
       if (currentSubtest.responseMode === 'tap') {
         await runTapSequence(abandoned)
         return
@@ -182,20 +232,27 @@ export function useSubtestSession(
       setError(err.message)
       setPhase('error')
     }
-  }, [currentSubtest, createRecorder, playAudio, runTapSequence, abandonAttempt])
+  }, [currentSubtest, createRecorder, playAudio, runCountdown, runTapSequence, abandonAttempt])
 
   const finishRecording = useCallback(async () => {
+    // Capture the generation so a skip pressed during "Processing" retires this
+    // continuation instead of racing skipSubtest to append a second result.
+    const generation = generationRef.current
+    const abandoned = () => generationRef.current !== generation
     setPhase('scoring')
     try {
       const blob = await recorderRef.current.stop()
+      if (abandoned()) return
       const responseMs = Date.now() - recordingStartedAtRef.current
       const audioBuffer = await blob.arrayBuffer()
       const { text: transcript, engine } = await transcribeAudio(audioBuffer, blob.type, 'th')
+      if (abandoned()) return
       const scoreResult = await scoreItem(currentSubtest.scorerId, transcript, {
         expectedSequence: currentSubtest.expectedSequence,
         referenceDate: new Date(),
         ...sessionContext
       })
+      if (abandoned()) return
 
       // Debug aid for checking ASR accuracy against scoring during manual runs.
       // Silenced under Vitest so test output stays clean.
@@ -213,6 +270,7 @@ export function useSubtestSession(
 
       completeSubtest(scoreResult, { transcript, engine, responseMs })
     } catch (err) {
+      if (abandoned()) return
       setError(err.message)
       setPhase('error')
     }
@@ -250,6 +308,17 @@ export function useSubtestSession(
     }
   }, [abandonAttempt, currentSubtest, index, subtests.length])
 
+  // Back to the very first subtest with every result cleared, so the whole
+  // battery can be re-administered without reloading the app.
+  const resetSession = useCallback(() => {
+    abandonAttempt()
+    setResults([])
+    setError(null)
+    setCountdownValue(null)
+    setIndex(0)
+    setPhase('instruction')
+  }, [abandonAttempt])
+
   // A no-op outside the tapping phase: a press during the lead-in or after
   // the last window is not an answer to any digit, so it must not become one.
   const recordTap = useCallback(() => {
@@ -262,10 +331,16 @@ export function useSubtestSession(
     phase,
     results,
     error,
+    countdownValue,
+    index,
+    total: subtests.length,
+    isLastSubtest,
     beginSubtest,
     finishRecording,
     retryRecording,
     skipSubtest,
+    continueToNext,
+    resetSession,
     recordTap
   }
 }

@@ -76,7 +76,7 @@ export const SUBTESTS = [
     instructionTextEn:
       'Listen carefully to five words. When they finish, repeat as many as you can.',
     instructionTextTh: 'ตั้งใจฟังคำห้าคำ เมื่อจบแล้ว ให้พูดทวนให้ได้มากที่สุด',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 30,
     scorerId: 'memory-registration',
     instructionAudio: INSTR.memory1,
@@ -87,7 +87,7 @@ export const SUBTESTS = [
     section: 'Memory (trial 2)',
     instructionTextEn: 'Listen to the same five words again, then repeat as many as you can.',
     instructionTextTh: 'ฟังคำทั้งห้าอีกครั้ง แล้วพูดทวนให้ได้มากที่สุด',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 30,
     scorerId: 'memory-registration',
     instructionAudio: INSTR.memory2,
@@ -98,7 +98,7 @@ export const SUBTESTS = [
     section: 'Attention',
     instructionTextEn: 'Listen to the numbers, then repeat them in the same order.',
     instructionTextTh: 'ฟังตัวเลขต่อไปนี้ แล้วพูดทวนตามลำดับ',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 7,
     scorerId: 'digit-span-forward',
     instructionAudio: INSTR.digitForward,
@@ -110,7 +110,7 @@ export const SUBTESTS = [
     section: 'Attention',
     instructionTextEn: 'Listen to the numbers, then repeat them in reverse order.',
     instructionTextTh: 'ฟังตัวเลขต่อไปนี้ แล้วพูดทวนย้อนกลับ',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 7,
     scorerId: 'digit-span-backward',
     instructionAudio: INSTR.digitBackward,
@@ -132,7 +132,7 @@ export const SUBTESTS = [
       'You will hear a list of numbers. Press the space bar, or click the button on screen, every time you hear the number one.',
     instructionTextTh:
       'คุณจะได้ยินตัวเลขหลายตัว ให้เคาะปุ่ม space-bar หรือคลิกที่ปุ่มบนหน้าจอ ทุกครั้งที่ได้ยินเลขหนึ่ง',
-    countdownSec: 0,
+    countdownSec: 3,
     // The sequence's own fixed duration: 1s lead-in plus 29 digits at 1s each.
     // A recorded fact rather than a deadline -- the subtest ends when the audio
     // ends, so there is nothing here to enforce.
@@ -153,7 +153,7 @@ export const SUBTESTS = [
     instructionTextEn:
       'Starting at 100, subtract 7, then keep subtracting 7 from each answer. Say each answer out loud.',
     instructionTextTh: 'เริ่มจาก 100 ให้ลบออกทีละ 7 แล้วลบ 7 จากคำตอบไปเรื่อย ๆ พูดคำตอบออกมาดัง ๆ',
-    countdownSec: 0,
+    countdownSec: 3,
     // A budget for the process-data record, not a deadline: nothing in the
     // app enforces it and no clock is shown. Five subtractions with normal
     // pauses fit comfortably inside 60s, and a slow but correct patient is
@@ -178,7 +178,7 @@ export const SUBTESTS = [
       'Tell me how two things are alike. For example, a banana and an orange are both fruit. Now: a train and a bicycle?',
     instructionTextTh:
       'บอกว่าของสองสิ่งเหมือนกันอย่างไร ตัวอย่างเช่น กล้วยกับส้ม เป็นผลไม้ทั้งคู่ ทีนี้ รถไฟกับจักรยาน?',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 30,
     scorerId: 'abstraction-1',
     instructionAudio: INSTR.abstraction1
@@ -192,7 +192,7 @@ export const SUBTESTS = [
     // the patient toward the kind of answer being measured.
     instructionTextEn: 'And how are a watch and a ruler alike?',
     instructionTextTh: 'แล้วนาฬิกากับไม้บรรทัดเหมือนกันอย่างไร?',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 30,
     scorerId: 'abstraction-2',
     instructionAudio: INSTR.abstraction2
@@ -202,7 +202,7 @@ export const SUBTESTS = [
     section: 'Delayed Recall',
     instructionTextEn: 'Tell me as many of those five words as you can remember.',
     instructionTextTh: 'บอกคำทั้งห้าคำที่จำได้ให้มากที่สุด',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 30,
     scorerId: 'delayed-recall',
     instructionAudio: INSTR.delayedRecall
@@ -212,7 +212,7 @@ export const SUBTESTS = [
     section: 'Orientation',
     instructionTextEn: "Tell me today's day, month, year, date, place, and province.",
     instructionTextTh: 'บอกวัน เดือน ปี วันที่ สถานที่ และจังหวัดในวันนี้',
-    countdownSec: 0,
+    countdownSec: 3,
     timeLimitSec: 15,
     scorerId: 'orientation',
     instructionAudio: INSTR.orientation
