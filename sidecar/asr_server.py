@@ -12,6 +12,8 @@ import threading
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 
+from model_paths import resolve_model
+
 DEFAULT_MODEL = "deepdml/faster-whisper-large-v3-turbo-ct2"
 
 app = FastAPI()
@@ -25,7 +27,10 @@ def load_model():
     from faster_whisper import WhisperModel
 
     model_id = os.environ.get("MOCA_ASR_MODEL", DEFAULT_MODEL)
-    return WhisperModel(model_id, device="cpu", compute_type="int8")
+    # A raw Transformers checkpoint is converted to CTranslate2 at setup time;
+    # resolve_model swaps in that local conversion when one exists, so what we
+    # load here matches what prepare_model.py built.
+    return WhisperModel(resolve_model(model_id), device="cpu", compute_type="int8")
 
 
 def describe_load_failure(exc):

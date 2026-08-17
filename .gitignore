@@ -8,8 +8,17 @@ out
 .env.*
 !.env.example
 sidecar/.venv
+# Locally converted CTranslate2 models (multi-GB, rebuilt by prepare_model.py)
+sidecar/.models/
 __pycache__/
 .pytest_cache/
 # Scratch space for subagent-driven plan execution: ledgers, briefs, review
 # packages. The git history is the durable record, not this.
 .superpowers/
+
+# uv dependencies
+.python-version
+pyproject.toml
+uv.lock
+
+screenshots/

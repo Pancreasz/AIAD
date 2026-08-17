@@ -53,13 +53,14 @@ if (installStatus !== 0) {
   process.exit(installStatus)
 }
 
+// prepare_model.py caches the model for the faster-whisper runtime. If the id
+// is a raw Transformers checkpoint (no CTranslate2 model.bin) it is converted
+// to CT2 first -- that step pulls in transformers + torch on demand, so a plain
+// CT2 model still installs nothing extra here.
 runOrExit(
   py,
-  [
-    '-c',
-    `from faster_whisper import WhisperModel; WhisperModel(${JSON.stringify(model)}, device="cpu", compute_type="int8"); print("model cached")`
-  ],
-  `Pre-downloading ${model} (~1.6 GB, one time only)`
+  [resolve(SIDECAR_DIR, 'prepare_model.py'), model],
+  `Preparing ${model} for the local engine (first run downloads/converts, ~1.6 GB+)`
 )
 
 console.log('\nASR sidecar ready. Run `npm run dev`.')

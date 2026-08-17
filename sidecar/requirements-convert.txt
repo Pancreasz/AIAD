@@ -1,0 +1,11 @@
+# Conversion-only dependencies, installed by prepare_model.py the first time a
+# raw Transformers checkpoint has to be turned into CTranslate2. They are NOT
+# needed at runtime -- the sidecar runs on ctranslate2 (via faster-whisper),
+# which is already in requirements.txt -- so they stay out of that file to keep
+# the runtime install light.
+# Pinned below transformers 5: the CTranslate2 converter (ctranslate2 4.x, in
+# requirements.txt) targets the transformers 4.x Whisper API, and the 5.x bump
+# moves things the converter reaches for. Keep this range aligned with the
+# installed ctranslate2.
+transformers>=4.38.0,<5
+torch>=2.1.0
