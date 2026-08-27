@@ -2,8 +2,8 @@
 
 Continuing this project in a new Claude Code session? Start here.
 
-*Last updated 2026-08-17, after Abstraction landed and the whole Attention section was verified
-with real audio.*
+*Last updated 2026-08-27, after Sentence Repetition and Verbal Fluency landed. Neither is verified
+with real audio yet — see "What is verified" below.*
 
 ## What this project is
 
@@ -15,8 +15,8 @@ innovation competition, <1 month timeline starting 2026-08-13.
 
 ## Current state
 
-**8 of 13 subtests, 22 of 30 points.** 219 JS tests + 10 Python tests, all passing, build clean.
-Everything is merged to `main` and pushed to `origin`. Working tree clean.
+**11 of 13 subtests, 25 of 30 points.** 245 JS tests + 10 Python tests, all passing, build clean.
+Not yet committed — see Outstanding.
 
 | Built | Points | Notes |
 |---|---|---|
@@ -28,13 +28,15 @@ Everything is merged to `main` and pushed to `origin`. Working tree clean.
 | Serial 7s | 3 | scored on the non-linear band table, against what the patient said |
 | Vigilance | 1 | 29 digits at 1/sec, tap on 1 — the only non-voice subtest |
 | Abstraction ×2 | 2 | accept-list only; a reject-list would strip correct answers |
+| Sentence Repetition ×2 | 2 | exact-match, all-or-nothing per sentence; audio not yet recorded |
+| Verbal Fluency | 1 | letter ก, ≥11 words; the only subtest with a real 60s auto-stop; audio not yet recorded |
 
-**Not built (5 subtests, 8 points):** sentence repetition (2), verbal fluency (1) — 3 voice
-points. Plus Trail Making (1), Cube copy (1), Clock Drawing (3) — **the pen/Wacom subtests are
-being done by the user's teammates, not here.**
+**Not built (2 subtests, 5 points):** Trail Making (1), Cube copy (1), Clock Drawing (3) — **the
+pen/Wacom subtests are being done by the user's teammates, not here.** That's everything left in
+this repo's scope.
 
-The session now runs **eleven screens**: Memory registration and Digit Span contribute two each,
-and Abstraction two, so screens outnumber MoCA subtests.
+The session now runs **fourteen screens**: Memory registration and Digit Span contribute two each,
+Abstraction two, and Sentence Repetition two, so screens outnumber MoCA subtests.
 
 ### Architecture as built
 
@@ -53,8 +55,13 @@ and Abstraction two, so screens outnumber MoCA subtests.
   takes a different path through the same hook: no recorder, no transcription, a `tapping` phase,
   and taps carried to the scorer on the `context` argument with `transcript: ''`. A subtest without
   `responseMode` is untouched by any of it.
-- **`SessionResults` has a Process data column** showing vigilance hits, misses, false taps and
-  mean reaction time. `responseMs` is deliberately excluded from it — see the constraints below.
+- **One subtest can enforce a real deadline: `autoStopMs`.** Set only on `verbal-fluency`
+  (60,000ms). A `useEffect` in `useSubtestSession` calls `finishRecording()` automatically once it
+  elapses, exactly as if Stop had been clicked. Every other subtest's `timeLimitSec` remains
+  process-data only — nothing enforces it, and no clock is shown, on purpose (see constraints).
+- **`SessionResults` has a Process data column** showing vigilance hits/misses/false taps + mean
+  reaction time, and verbal fluency's qualifying word count. `responseMs` is deliberately excluded
+  from it — see the constraints below.
 
 ### Read these if you need depth
 
@@ -78,7 +85,7 @@ the user.
 npm install          # if node_modules is missing
 npm run setup:asr    # ONE TIME: builds sidecar/.venv and downloads the 1.6 GB model
 npm run dev          # launch the app
-npm test             # 219 Vitest tests
+npm test             # 245 Vitest tests
 npm run test:asr     # 10 pytest tests (the Python sidecar)
 npm run test:all     # both
 npm run build        # verify main/preload/renderer compile
@@ -150,41 +157,48 @@ during inference.
 scored, and the result reported 1/1 with its hit and miss counts. That was the first end-to-end
 proof of the tap modality.
 
-**21 of the 23 referenced audio files exist.** The two missing are
-`instr-abstraction-1.mp3` and `instr-abstraction-2.mp3`, so **Abstraction is built and tested but
-unreachable** — both items hit the error screen and can be skipped. To check this yourself, pull
-every `moca/audio/...` path out of `subtests.js`, add one `digit-N.mp3` per distinct digit in
-`VIGILANCE_SEQUENCE`, and test each for existence; the docs are not the authority, the code is.
+**All 27 referenced audio files now exist**, including the two Abstraction instructions that were
+missing as of the last handout, and the four new files Sentence Repetition and Verbal Fluency
+need. `sentence-1.wav`/`sentence-2.wav` are `.wav`, not `.mp3` — the only two stimulus files that
+are; `subtests.js` points at them by their real extension, Chromium plays either format fine. To
+check this yourself, pull every `moca/audio/...` path out of `subtests.js`, add one `digit-N.mp3`
+per distinct digit in `VIGILANCE_SEQUENCE`, and test each for existence; the docs are not the
+authority, the code is.
 
-**Not verified:** a full eleven-screen run; delayed recall accuracy on real speech (the `หน้า`
-accepted-variant list includes tonal homophones `น่า`/`นา` as a deliberate gamble, unvalidated);
-real-speech latency per subtest. My only latency measurement used a synthetic tone, which pushes
-Whisper into worst-case decoding — treat ~3-4× realtime as pessimistic and unproven.
+**Every subtest in this repo's scope is now built, tested, and reachable end to end** — Naming
+through Verbal Fluency, all 25 points. Nothing is blocked on missing audio any more.
+
+**Not verified:** any of the three most recently built/unblocked subtests (Abstraction, Sentence
+Repetition, Verbal Fluency) with real speech — the audio exists but no real run has happened yet;
+a full fourteen-screen run; delayed recall accuracy on real speech (the `หน้า` accepted-variant
+list includes tonal homophones `น่า`/`นา` as a deliberate gamble, unvalidated); real-speech latency
+per subtest. My only latency measurement used a synthetic tone, which pushes Whisper into
+worst-case decoding — treat ~3-4× realtime as pessimistic and unproven.
+
+**Verbal Fluency's word-count logic is an unvalidated gamble, the same class as the `หน้า` one.**
+It recovers word boundaries from a spaceless Thai transcript by splitting on whitespace/punctuation
+and betting that Whisper renders the patient's natural pauses between words as gaps. Untested
+against real speech.
 
 ## Next steps, in order
 
-1. **Record `instr-abstraction-1.mp3` and `instr-abstraction-2.mp3`** — the only unrecorded files
-   left. Abstraction is built and tested but unreachable until they exist. Part 4 of
-   `docs/moca-audio-recording-script.md` has the exact lines; the banana-and-orange example must
-   stay in the first one.
-2. **Verbal fluency (1 pt)** — cheapest remaining, and the only subtest in the app with a real
-   normed deadline: exactly 60 seconds, against the "≥11 words" cutoff. Needs the timer work no
-   other subtest has required.
-3. **Sentence repetition (2 pts)** — needs new stimulus recordings. The
-   sentences must come from the user's Thai form; they are not in this repo.
-   `docs/moca-audio-recording-script.md` explains the recording conventions.
-4. **A settings screen** for `place`/`province`, currently hardcoded in `SessionRunner.jsx` as
+1. **Run a real fourteen-screen session end to end** — nothing is blocked on missing audio any
+   more, and this has never been done. Pay special attention to Abstraction, Sentence Repetition,
+   and Verbal Fluency, none of which has been verified against real speech yet — especially the
+   fluency word-splitting gamble above.
+2. **A settings screen** for `place`/`province`, currently hardcoded in `SessionRunner.jsx` as
    `SESSION_CONTEXT`.
-5. **Biomarker layer** — genuinely blocked until pilot sessions produce data. `responseMs` and
+3. **Biomarker layer** — genuinely blocked until pilot sessions produce data. `responseMs` and
    `timeLimitSec` are already captured on every result as its first raw material, though see the
    caveat below.
 
 ## Important constraints — do not violate
 
-- **Verbal fluency's time limit must be 60 seconds.** It is normed against the official MoCA's
-  "≥11 words" cutoff. No other subtest has a normed response deadline, which is why the app
-  deliberately enforces **no** time limits and shows **no** clock — cutting off a slow but
-  correct patient would manufacture a wrong score.
+- **Verbal fluency's time limit must be 60 seconds, and is now enforced** via `autoStopMs` in
+  `useSubtestSession` (see Architecture). It is normed against the official MoCA's "≥11 words"
+  cutoff. No other subtest has a normed response deadline, which is why every other subtest
+  deliberately enforces **no** time limit and shows **no** clock — cutting off a slow but correct
+  patient would manufacture a wrong score. Do not add `autoStopMs` to any other subtest.
 - **Orientation year is Buddhist Era** (Gregorian + 543).
 - **Scoring stays rule-based.** The Clock Drawing model is the only ML component in the whole
   project and is out of scope here.
@@ -211,6 +225,12 @@ Whisper into worst-case decoding — treat ~3-4× realtime as pessimistic and un
 
 ## Outstanding
 
+- **Sentence Repetition and Verbal Fluency, plus the six audio files that unblocked them and
+  Abstraction, are implemented but not yet committed or pushed** — new scorers
+  (`sentenceRepetition.js`, `verbalFluency.js`), the three new `subtests.js` entries, the
+  `autoStopMs` mechanism in `useSubtestSession.js`, the new audio under
+  `src/renderer/public/moca/audio/`, and the doc updates above. Commit and push before starting
+  anything else, so this state isn't lost.
 - **The push works and the repo is up to date.** `git push` succeeds: git's own credentials live
   in Windows Credential Manager and are healthy. The **`gh` CLI token is separately expired** —
   `gh auth status` fails, so `gh` commands (PRs, issues) need `gh auth login -h github.com` first.

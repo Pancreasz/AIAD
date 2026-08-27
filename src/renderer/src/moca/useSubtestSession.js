@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 export function useSubtestSession(
   subtests,
@@ -217,6 +217,18 @@ export function useSubtestSession(
       setPhase('error')
     }
   }, [currentSubtest, transcribeAudio, scoreItem, sessionContext, completeSubtest])
+
+  // Verbal Fluency's real, normed 60-second deadline -- the one subtest in
+  // the instrument where a slow patient is *supposed* to be cut off, unlike
+  // every other subtest's timeLimitSec, which is a process-data budget only.
+  // Runs the same path a manual Stop click does, so it scores exactly like
+  // one. Cleanup fires whenever recording ends for any other reason (Stop
+  // clicked, error, subtest advances), so it never double-fires.
+  useEffect(() => {
+    if (phase !== 'recording' || !currentSubtest.autoStopMs) return
+    const timeoutId = setTimeout(finishRecording, currentSubtest.autoStopMs)
+    return () => clearTimeout(timeoutId)
+  }, [phase, currentSubtest, finishRecording])
 
   const retryRecording = useCallback(() => {
     abandonAttempt()

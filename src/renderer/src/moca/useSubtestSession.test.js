@@ -475,6 +475,62 @@ describe('useSubtestSession response timing', () => {
   })
 })
 
+describe('useSubtestSession auto-stop', () => {
+  // Verbal Fluency's real 60s deadline. Using a tiny ms value here so the
+  // test runs fast; the mechanism doesn't care about the magnitude.
+  const withAutoStop = [{ id: 'verbal-fluency', scorerId: 'verbal-fluency', autoStopMs: 10 }]
+  const withoutAutoStop = [{ id: 'orientation', scorerId: 'orientation' }]
+
+  it('stops and scores automatically once autoStopMs elapses, without a manual Stop click', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(withAutoStop, deps))
+
+    await act(async () => {
+      await result.current.beginSubtest()
+    })
+    expect(result.current.phase).toBe('recording')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+    })
+
+    expect(deps.fakeRecorder.stop).toHaveBeenCalled()
+    expect(result.current.phase).toBe('done')
+    expect(result.current.results).toHaveLength(1)
+  })
+
+  it('does not schedule an auto-stop for a subtest that declares none', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(withoutAutoStop, deps))
+
+    await act(async () => {
+      await result.current.beginSubtest()
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+    })
+
+    expect(result.current.phase).toBe('recording')
+  })
+
+  it('does not double-score when the manual Stop click already finished recording', async () => {
+    const deps = setup()
+    const { result } = renderHook(() => useSubtestSession(withAutoStop, deps))
+
+    await act(async () => {
+      await result.current.beginSubtest()
+    })
+    await act(async () => {
+      await result.current.finishRecording()
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+    })
+
+    expect(result.current.results).toHaveLength(1)
+  })
+})
+
 const tapSubtest = {
   id: 'vigilance',
   scorerId: 'vigilance',

@@ -86,6 +86,47 @@ describe('SUBTESTS', () => {
     }
   })
 
+  it('includes both Sentence Repetition items, each with its own instruction and stimulus audio', () => {
+    for (const id of ['sentence-repetition-1', 'sentence-repetition-2']) {
+      const subtest = SUBTESTS.find((s) => s.id === id)
+      expect(subtest).toBeDefined()
+      expect(subtest.instructionAudio).toBe('moca/audio/instr-sentence-repeat.mp3')
+      // .wav, not .mp3 -- the recordings that exist for these are WAV.
+      expect(subtest.audio).toBe(`moca/audio/${id.replace('sentence-repetition', 'sentence')}.wav`)
+    }
+  })
+
+  it('gives the two Sentence Repetition items distinguishable section labels', () => {
+    const sections = SUBTESTS.filter((s) => s.id.startsWith('sentence-repetition')).map(
+      (s) => s.section
+    )
+    expect(new Set(sections).size).toBe(2)
+  })
+
+  it('includes Verbal Fluency with a real, enforced 60-second cutoff', () => {
+    const fluency = SUBTESTS.find((s) => s.id === 'verbal-fluency')
+    expect(fluency).toBeDefined()
+    expect(fluency.section).toBe('Verbal Fluency')
+    expect(fluency.autoStopMs).toBe(60_000)
+    expect(fluency.audio).toBeUndefined()
+  })
+
+  // Every other subtest's timeLimitSec is a process-data budget only -- see
+  // the Not-yet-built handout constraint. Verbal Fluency is the sole
+  // exception, so it must be the sole subtest carrying autoStopMs.
+  it('leaves every subtest but Verbal Fluency without an enforced auto-stop', () => {
+    const autoStopping = SUBTESTS.filter((s) => s.autoStopMs)
+    expect(autoStopping.map((s) => s.id)).toEqual(['verbal-fluency'])
+  })
+
+  it('administers Sentence Repetition and Verbal Fluency after Serial 7s and before Abstraction', () => {
+    const ids = SUBTESTS.map((s) => s.id)
+    for (const id of ['sentence-repetition-1', 'sentence-repetition-2', 'verbal-fluency']) {
+      expect(ids.indexOf(id)).toBeGreaterThan(ids.indexOf('serial-sevens'))
+      expect(ids.indexOf(id)).toBeLessThan(ids.indexOf('abstraction-1'))
+    }
+  })
+
   // A scorerId that does not match any registered scorer is invisible until a
   // patient reaches that subtest mid-session and the run dies on it. This
   // catches the typo at build time instead.

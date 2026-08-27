@@ -6,6 +6,16 @@ export function exactMatch(transcript, expected) {
   return normalizeText(transcript) === normalizeText(expected)
 }
 
+// Thai has no spaces between words and Whisper's spacing for a continuous
+// sentence is arbitrary -- the same utterance can come back "run on" or with
+// gaps in different places. Stripping all whitespace before comparing avoids
+// scoring a genuinely exact repetition as wrong because of where Whisper
+// happened to put a gap.
+export function exactMatchIgnoringSpaces(transcript, expected) {
+  const collapse = (text) => normalizeText(text).replace(/\s+/g, '')
+  return collapse(transcript) === collapse(expected)
+}
+
 export function keywordMatch(transcript, acceptedKeywords) {
   const normalized = normalizeText(transcript)
   return acceptedKeywords.some((keyword) => normalized.includes(normalizeText(keyword)))

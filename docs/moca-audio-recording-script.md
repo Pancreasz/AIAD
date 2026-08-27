@@ -232,12 +232,35 @@ add it.
 
 ---
 
-## Audio needed by subtests not yet built
+## Part 5 — Sentence Repetition and Verbal Fluency (built, needs audio)
 
-Not required now — listed so you can plan a single recording session rather than several.
+Three files. Sentence Repetition shares one instruction across both sentences, the same way
+Vigilance names both inputs once; Verbal Fluency's category and cutoff come straight from the
+user's Thai MoCA form.
 
-- **Sentence repetition** (2 points) — the patient repeats two sentences read aloud, so both
-  sentences need recording.
+### `instr-sentence-repeat.mp3`
 
-The sentences come from your Thai MoCA form; they are not in this repo. Pull them from the form
-before your recording session if you want to capture everything at once.
+> ฟังประโยคต่อไปนี้ แล้วพูดทวนให้เหมือนเดิมทุกคำ
+
+Normal conversational pace, like the other instruction files. Played before both sentences.
+
+### `sentence-1.mp3`
+
+> ฉันรู้ว่าจอมเป็นคนเดียวที่มาช่วยงานวันนี้
+
+### `sentence-2.mp3`
+
+> แมวมักซ่อนตัวอยู่หลังเก้าอี้เมื่อมีหมาอยู่ในห้อง
+
+**How to read these two:** normal conversational pace, one clean take each. Scoring is exact-match
+— any omission or substitution scores nothing for that sentence — so read the sentence plainly,
+without hinting at word boundaries or adding emphasis that would make it easier to repeat than the
+official administration intends.
+
+### `instr-verbal-fluency.mp3`
+
+> บอกคำที่ขึ้นต้นด้วย ก ให้ได้มากที่สุด ภายในหนึ่งนาที
+
+Normal conversational pace. This is the only subtest in the app with a real, enforced 60-second
+cutoff — the recording ends itself at 60s whether or not the patient is still talking, scored
+against an ≥11-word cutoff.
