@@ -16,9 +16,11 @@ class FakeSegment:
 class FakeModel:
     def __init__(self):
         self.calls = []
+        self.vad_filter = None
 
-    def transcribe(self, audio, language=None):
+    def transcribe(self, audio, language=None, vad_filter=None):
         self.calls.append(language)
+        self.vad_filter = vad_filter
         return [FakeSegment(" สิงโต"), FakeSegment(" แรด")], {}
 
 
@@ -75,6 +77,19 @@ def test_transcribe_passes_the_requested_language_through():
     assert fake.calls == ["th"]
 
 
+def test_transcribe_enables_vad_filter_to_skip_silence():
+    """Without this, faster-whisper on CPU can enter a repetition/hallucination
+    loop on silence and decode to the maximum token length -- measured at 53s
+    for a 10s pure-silence clip, against this app's 60s hard timeout. VAD
+    filtering skips the silent region instead of decoding it (0.6s measured
+    on the same clip) and is the documented fix for that risk."""
+    fake = FakeModel()
+    asr_server._model = fake
+    client = TestClient(asr_server.app)
+    _post_audio(client)
+    assert fake.vad_filter is True
+
+
 def test_transcribe_offloads_both_the_model_call_and_the_segment_drain():
     """faster-whisper does nearly all of its CPU work while *iterating* the
     segment generator, not during the transcribe() call itself. Offloading
@@ -97,7 +112,7 @@ def test_transcribe_offloads_both_the_model_call_and_the_segment_drain():
             self.call_thread_name = None
             self.drain_thread_name = None
 
-        def transcribe(self, audio, language=None):
+        def transcribe(self, audio, language=None, vad_filter=None):
             self.call_thread_name = threading.current_thread().name
 
             def _segments():

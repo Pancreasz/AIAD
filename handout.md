@@ -147,6 +147,23 @@ user profile. No network call happens at transcription time.
    no vocabulary with the ones it accepts, so the accept-list cannot make that mistake. A test
    pins this case; do not "harden" it by adding rejections.
 
+10. **`_transcribe_sync` in `sidecar/asr_server.py` MUST pass `vad_filter=True`.** Without it, a
+    real run hit the app's 60s transcription timeout and errored with no OpenAI key to fall back
+    to. Root cause, confirmed by direct reproduction: on CPU, faster-whisper can enter a
+    repetition/hallucination loop on silence and decode to the maximum token length instead of
+    stopping — measured at **53–63s for 10s of pure silence**, right at the timeout, while the
+    same 10s clip with `vad_filter=True` returned in **0.5–0.7s**. Real speech is unaffected (a
+    naming instruction clip transcribed correctly at the same ~15s either way). This means any
+    subtest recording with real silence in it — a slow patient, or the seconds between answering
+    and the operator clicking Stop — was at risk before this fix, not just edge cases. A pytest
+    (`test_transcribe_enables_vad_filter_to_skip_silence`) pins this; do not remove the flag
+    "for accuracy" without re-measuring the silence case first.
+    - **If a Windows PowerShell/bash restart of the sidecar seems to not pick up a code change,
+      check `netstat -ano` for the real PID actually holding the port.** `nohup ... &` under
+      git-bash's `$!` can report an MSYS pid that isn't the real Windows process, so `taskkill` on
+      it silently no-ops and the old process keeps serving. This cost real debugging time while
+      verifying this exact fix.
+
 ## What is verified, and what is not
 
 **Verified end to end with real speech:** Digit Span backward transcribed `สองสี่เจ็ด` and scored

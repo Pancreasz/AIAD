@@ -63,8 +63,15 @@ def start_loading():
 
 
 def _transcribe_sync(model, audio, language):
-    """Run the model and drain its lazy segment generator, off the event loop."""
-    segments, _info = model.transcribe(audio, language=language)
+    """Run the model and drain its lazy segment generator, off the event loop.
+
+    vad_filter=True skips silent regions instead of decoding them. Without
+    it, faster-whisper on CPU can enter a repetition/hallucination loop on
+    silence and decode to the maximum token length -- measured at 53s for a
+    10s pure-silence clip, against this app's 60s hard transcription timeout.
+    With it, the same clip returns in 0.6s.
+    """
+    segments, _info = model.transcribe(audio, language=language, vad_filter=True)
     return "".join(segment.text for segment in segments).strip()
 
 
