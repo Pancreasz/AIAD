@@ -5,6 +5,8 @@ import { createAudioPlayer } from './AudioPlayer.js'
 import { createDigitSequencePlayer } from './DigitSequencePlayer.js'
 import { SUBTESTS } from './subtests.js'
 import { SessionResults } from '../pages/SessionResults.jsx'
+import { DrawingTest } from '../components/DrawingTest.jsx'
+import { TrailMaking } from '../components/TrailMaking.jsx'
 
 // TODO(follow-on plan): replace with a real settings screen. Hardcoded here
 // because this plan doesn't build session configuration — see "What's
@@ -36,9 +38,13 @@ export function SessionRunner() {
     finishRecording,
     retryRecording,
     skipSubtest,
-    recordTap
+    recordTap,
+    finishDrawing,
+    continueNextSubtest,
+    pendingResult
   } = useSubtestSession(
     SUBTESTS,
+
     {
       transcribeAudio: (buffer, mimeType, language) =>
         window.api.transcribeAudio(buffer, mimeType, language),
@@ -87,8 +93,79 @@ export function SessionRunner() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [phase, recordTap])
 
+  const handleResetSession = () => {
+    if (window.confirm('Are you sure you want to completely restart the session?')) {
+      localStorage.removeItem('moca_session_index')
+      localStorage.removeItem('moca_session_phase')
+      localStorage.removeItem('moca_session_results')
+      window.location.reload()
+    }
+  }
+
+  const GlobalResetButton = () => (
+    <button 
+      onClick={handleResetSession} 
+      style={{
+        position: 'fixed',
+        bottom: '20px',
+        left: '20px',
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.5)',
+        color: 'white',
+        border: 'none',
+        padding: '8px 12px',
+        borderRadius: '4px',
+        cursor: 'pointer'
+      }}
+    >
+      Restart Session
+    </button>
+  )
+
+  if (phase === 'clock-drawing' || phase === 'cube-drawing') {
+    return (
+      <>
+        <DrawingTest testId={phase.split('-')[0]} onFinish={finishDrawing} instructionEn={currentSubtest.instructionTextEn} instructionTh={currentSubtest.instructionTextTh} />
+        <GlobalResetButton />
+      </>
+    )
+  }
+
+  if (phase === 'trail-making') {
+    return (
+      <>
+        <TrailMaking onFinish={finishDrawing} instructionEn={currentSubtest.instructionTextEn} instructionTh={currentSubtest.instructionTextTh} />
+        <GlobalResetButton />
+      </>
+    )
+  }
+
   if (phase === 'done') {
-    return <SessionResults results={results} subtests={SUBTESTS} />
+    return (
+      <>
+        <SessionResults results={results} subtests={SUBTESTS} />
+        <GlobalResetButton />
+      </>
+    )
+  }
+
+  if (phase === 'score-review') {
+    return (
+      <div className="session-runner">
+        <h2>{currentSubtest.section} - Result</h2>
+        <div style={{ padding: '20px', background: '#f5f5f5', borderRadius: '8px', margin: '20px 0' }}>
+          <h3>Score: {pendingResult?.score} / {pendingResult?.maxScore}</h3>
+          <p><strong>Remarks:</strong> {pendingResult?.remarks || 'None'}</p>
+          {pendingResult?.analysis && (
+            <pre style={{ textAlign: 'left', background: '#eee', padding: '10px' }}>
+              {JSON.stringify(pendingResult.analysis, null, 2)}
+            </pre>
+          )}
+        </div>
+        <button className="moca-button" onClick={continueNextSubtest}>Continue to Next Subtest</button>
+        <GlobalResetButton />
+      </div>
+    )
   }
 
   if (phase === 'error') {
@@ -98,12 +175,15 @@ export function SessionRunner() {
         <p style={{ whiteSpace: 'pre-wrap' }}>{error}</p>
         <button onClick={retryRecording}>Retry</button>
         <button onClick={skipSubtest}>Skip this subtest</button>
+        <GlobalResetButton />
       </div>
     )
   }
 
   return (
     <div className="session-runner">
+      <GlobalResetButton />
+
       <p className="asr-status">ASR: {ASR_LABELS[asrStatus] ?? asrStatus}</p>
       <h2>{currentSubtest.section}</h2>
       {currentSubtest.images && (

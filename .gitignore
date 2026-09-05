@@ -13,3 +13,5 @@ __pycache__/
 # Scratch space for subagent-driven plan execution: ledgers, briefs, review
 # packages. The git history is the durable record, not this.
 .superpowers/
+patch.js
+models/

@@ -51,6 +51,10 @@ function recallInterval(results) {
 function processData(result) {
   if (result.skipped) return null
 
+  if (result.remarks) {
+    return result.remarks
+  }
+
   if (typeof result.wordCount === 'number') {
     return `${result.wordCount} word${result.wordCount === 1 ? '' : 's'} starting with ก`
   }
@@ -133,6 +137,20 @@ export function SessionResults({ results, subtests }) {
           {interval.short && ' — under the 5 minute protocol interval, so this score is not comparable to published norms'}
         </p>
       )}
+      <div style={{ marginTop: '20px' }}>
+        <button 
+          className="moca-button"
+          onClick={() => {
+            localStorage.removeItem('moca_session_index')
+            localStorage.removeItem('moca_session_phase')
+            localStorage.removeItem('moca_session_results')
+            window.location.reload()
+          }}
+        >
+          Start New Session
+        </button>
+      </div>
     </div>
   )
 }
+

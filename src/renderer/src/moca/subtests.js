@@ -61,6 +61,36 @@ const VIGILANCE_LEAD_IN_MS = 1000
 
 export const SUBTESTS = [
   {
+    id: 'trail-making',
+    section: 'Visuospatial / Executive',
+    instructionTextEn: 'Please draw a line going from a number to a letter in ascending order. Begin here (1) and draw a line to A, then 2, then B, and so on. End here (E).',
+    instructionTextTh: 'ลากเส้นสลับระหว่างตัวเลขกับตัวอักษร โดยเริ่มจาก 1 ไป A ไป 2 ไป B ไปเรื่อยๆ จนจบที่ E',
+    countdownSec: 0,
+    timeLimitSec: 300, // budget
+    scorerId: 'trail-making',
+    responseMode: 'trail-making'
+  },
+  {
+    id: 'clock-drawing',
+    section: 'Visuospatial / Executive',
+    instructionTextEn: 'Please draw a clock. Put in all the numbers and set the time to 10 past 11.',
+    instructionTextTh: 'ให้วาดรูปนาฬิกา ใส่ตัวเลขให้ครบ และชี้เวลาไปที่ 11 โมง 10 นาที',
+    countdownSec: 0,
+    timeLimitSec: 300, // budget
+    scorerId: 'clock-drawing',
+    responseMode: 'clock-drawing'
+  },
+  {
+    id: 'cube-drawing',
+    section: 'Visuospatial / Executive',
+    instructionTextEn: 'Copy this drawing as accurately as you can, in the space below.',
+    instructionTextTh: 'ให้วาดรูปนี้ให้เหมือนที่สุดเท่าที่จะทำได้ ในพื้นที่ว่างด้านล่างนี้',
+    countdownSec: 0,
+    timeLimitSec: 300,
+    scorerId: 'cube-drawing',
+    responseMode: 'cube-drawing'
+  },
+  {
     id: 'naming',
     section: 'Naming',
     // Order matters only for display. The alt text deliberately does NOT name

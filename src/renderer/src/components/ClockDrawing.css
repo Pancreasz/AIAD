@@ -1,0 +1,104 @@
+.clock-drawing-calibration {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  text-align: center;
+  user-select: none;
+}
+
+.calib-target {
+  position: absolute;
+  font-size: 24px;
+  color: red;
+  pointer-events: none;
+}
+
+.top-left-target {
+  top: 20px;
+  left: 20px;
+}
+
+.bottom-right-target {
+  bottom: 20px;
+  right: 20px;
+}
+
+.clock-drawing-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.clock-drawing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.clock-drawing-calib-info {
+  font-size: 0.9em;
+  color: #666;
+}
+
+.clock-drawing-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.small-button {
+  margin-left: 10px;
+  font-size: 0.8em;
+}
+
+.canvas-wrapper {
+  flex-grow: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+.clock-canvas {
+  background-color: #ffffff;
+  touch-action: none; /* Prevent scrolling while drawing */
+}
+
+.fullscreen-drawing {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #ffffff;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+.floating-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 10000;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}

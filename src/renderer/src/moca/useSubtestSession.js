@@ -14,10 +14,26 @@ export function useSubtestSession(
   },
   sessionContext = {}
 ) {
-  const [index, setIndex] = useState(0)
-  const [phase, setPhase] = useState('instruction')
-  const [results, setResults] = useState([])
+  const [index, setIndex] = useState(() => {
+    const saved = localStorage.getItem('moca_session_index')
+    return saved !== null ? parseInt(saved, 10) : 0
+  })
+  const [phase, setPhase] = useState(() => {
+    return localStorage.getItem('moca_session_phase') || 'instruction'
+  })
+  const [results, setResults] = useState(() => {
+    const saved = localStorage.getItem('moca_session_results')
+    return saved ? JSON.parse(saved) : []
+  })
+
+  useEffect(() => {
+    localStorage.setItem('moca_session_index', index.toString())
+    localStorage.setItem('moca_session_phase', phase)
+    localStorage.setItem('moca_session_results', JSON.stringify(results))
+  }, [index, phase, results])
+
   const [error, setError] = useState(null)
+  const [pendingResult, setPendingResult] = useState(null)
   const recorderRef = useRef(null)
   const generationRef = useRef(0)
   const recordingStartedAtRef = useRef(null)
@@ -26,30 +42,31 @@ export function useSubtestSession(
 
   const currentSubtest = subtests[index]
 
-  // Both modalities end the same way: append a result, then advance or finish.
-  // The hook's own fields are written after the scorer's spread so a scorer
-  // can never overwrite subtestId, transcript, or engine.
   const completeSubtest = useCallback(
     (scoreResult, fields) => {
-      setResults((prev) => [
-        ...prev,
-        {
-          ...scoreResult,
-          subtestId: currentSubtest.id,
-          timeLimitSec: currentSubtest.timeLimitSec || null,
-          completedAt: Date.now(),
-          ...fields
-        }
-      ])
-      if (index + 1 < subtests.length) {
-        setIndex((prev) => prev + 1)
-        setPhase('instruction')
-      } else {
-        setPhase('done')
+      const finalResult = {
+        ...scoreResult,
+        subtestId: currentSubtest.id,
+        timeLimitSec: currentSubtest.timeLimitSec || null,
+        completedAt: Date.now(),
+        processData: { ...fields }
       }
+      setPendingResult(finalResult)
+      setPhase('score-review')
     },
-    [currentSubtest, index, subtests.length]
+    [currentSubtest]
   )
+
+  const continueNextSubtest = useCallback(() => {
+    setResults((prev) => [...prev, pendingResult])
+    setPendingResult(null)
+    if (index < subtests.length - 1) {
+      setIndex((prev) => prev + 1)
+      setPhase('instruction')
+    } else {
+      setPhase('done')
+    }
+  }, [index, subtests, pendingResult])
 
   // Vigilance only. No recorder is created and no transcription happens: the
   // answer is when the patient tapped, not anything they said.
@@ -165,6 +182,12 @@ export function useSubtestSession(
         return
       }
 
+      if (currentSubtest.responseMode === 'clock-drawing' || currentSubtest.responseMode === 'cube-drawing' || currentSubtest.responseMode === 'trail-making') {
+        recordingStartedAtRef.current = Date.now()
+        setPhase(currentSubtest.responseMode)
+        return
+      }
+
       const recorder = createRecorder()
       await recorder.start()
       if (abandoned()) {
@@ -269,6 +292,22 @@ export function useSubtestSession(
     tapsRef.current = [...tapsRef.current, Date.now() - sequenceStartedAtRef.current]
   }, [phase])
 
+  const finishDrawing = useCallback(async (drawingData) => {
+    setPhase('scoring')
+    try {
+      const responseMs = Date.now() - (recordingStartedAtRef.current || Date.now())
+      const scoreResult = await scoreItem(currentSubtest.scorerId, '', {
+        drawing: drawingData,
+        referenceDate: new Date(),
+        ...sessionContext
+      })
+      completeSubtest(scoreResult, { transcript: '', engine: null, responseMs })
+    } catch (err) {
+      setError(err.message)
+      setPhase('error')
+    }
+  }, [currentSubtest, scoreItem, sessionContext, completeSubtest])
+
   return {
     currentSubtest,
     phase,
@@ -278,6 +317,10 @@ export function useSubtestSession(
     finishRecording,
     retryRecording,
     skipSubtest,
-    recordTap
+    recordTap,
+    finishDrawing,
+    continueNextSubtest,
+    pendingResult
   }
 }
+

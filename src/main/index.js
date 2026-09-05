@@ -93,6 +93,31 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  ipcMain.handle('fs:save', async (_, { filename, dataUrl }) => {
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const targetDir = 'E:/vsaiad/save'
+      fs.mkdirSync(targetDir, { recursive: true })
+      
+      const filePath = path.join(targetDir, filename)
+      
+      if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+        const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
+        if (matches && matches.length === 3) {
+          const buffer = Buffer.from(matches[2], 'base64')
+          fs.writeFileSync(filePath, buffer)
+        }
+      } else {
+        fs.writeFileSync(filePath, dataUrl)
+      }
+      return { success: true, path: filePath }
+    } catch (e) {
+      console.error('Failed to save file:', e)
+      return { success: false, error: e.message }
+    }
+  })
+
   // Deliberately NOT awaited: the window must appear while Python loads the
   // model in the background. See the spec's "Startup must not block the window".
   const pendingSidecar = startSidecar()
