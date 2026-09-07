@@ -5,6 +5,8 @@ import { scoreMemoryRegistration, scoreDelayedRecall } from './memoryWords.js'
 import { scoreSerialSevens } from './serialSevens.js'
 import { scoreVigilance } from './vigilance.js'
 import { scoreAbstraction } from './abstraction.js'
+import { scoreSentenceRepetition } from './sentenceRepetition.js'
+import { scoreVerbalFluency } from './verbalFluency.js'
 
 export function scoreItem(subtestId, transcript, context) {
   switch (subtestId) {
@@ -30,6 +32,13 @@ export function scoreItem(subtestId, transcript, context) {
     case 'abstraction-1':
     case 'abstraction-2':
       return scoreAbstraction(transcript, subtestId)
+    // Both items share one scorer, which needs to know which sentence was
+    // asked -- the same reason abstraction's dispatch carries subtestId.
+    case 'sentence-repetition-1':
+    case 'sentence-repetition-2':
+      return scoreSentenceRepetition(transcript, subtestId)
+    case 'verbal-fluency':
+      return scoreVerbalFluency(transcript)
     default:
       throw new Error(`No scorer registered for subtest "${subtestId}"`)
   }

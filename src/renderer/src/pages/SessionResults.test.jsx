@@ -87,6 +87,21 @@ describe('SessionResults process data', () => {
     expect(screen.getByText('0 hits, 11 misses, 0 false taps')).toBeInTheDocument()
   })
 
+  it('reports the qualifying word count for verbal fluency', () => {
+    const fluencySubtests = [{ id: 'verbal-fluency', section: 'Verbal Fluency' }]
+    const fluency = {
+      subtestId: 'verbal-fluency',
+      score: 1,
+      maxScore: 1,
+      engine: 'local',
+      wordCount: 12,
+      words: []
+    }
+    render(<SessionResults results={[fluency]} subtests={fluencySubtests} />)
+
+    expect(screen.getByText('12 words starting with ก')).toBeInTheDocument()
+  })
+
   it('leaves the process cell empty for subtests that produce none', () => {
     const results = [{ subtestId: 'naming', score: 2, maxScore: 3, engine: 'local' }]
     const { container } = render(<SessionResults results={results} subtests={tapSubtests} />)

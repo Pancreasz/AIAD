@@ -17,6 +17,10 @@ import camelImage from '../assets/moca/images/camel.png'
 const MEMORY_WORDS_AUDIO = 'moca/audio/memory-words.mp3'
 const DIGITS_FORWARD_AUDIO = 'moca/audio/digits-forward.mp3'
 const DIGITS_BACKWARD_AUDIO = 'moca/audio/digits-backward.mp3'
+// .wav, not .mp3, unlike every other stimulus file -- the recordings that
+// exist for these two are WAV, and the browser plays either format fine.
+const SENTENCE_1_AUDIO = 'moca/audio/sentence-1.wav'
+const SENTENCE_2_AUDIO = 'moca/audio/sentence-2.wav'
 
 // Instruction narration: spoken versions of instructionTextTh, played before
 // the stimulus. Separate from `audio` because Memory and Digit Span need both,
@@ -32,7 +36,9 @@ const INSTR = {
   abstraction1: 'moca/audio/instr-abstraction-1.mp3',
   abstraction2: 'moca/audio/instr-abstraction-2.mp3',
   delayedRecall: 'moca/audio/instr-delayed-recall.mp3',
-  orientation: 'moca/audio/instr-orientation.mp3'
+  orientation: 'moca/audio/instr-orientation.mp3',
+  sentenceRepeat: 'moca/audio/instr-sentence-repeat.mp3',
+  verbalFluency: 'moca/audio/instr-verbal-fluency.mp3'
 }
 
 // Vigilance: the patient taps every time they hear the target digit. Straight
@@ -164,6 +170,52 @@ export const SUBTESTS = [
     // No `audio`: unlike Digit Span and Memory there is no stimulus to play.
     // The starting number lives in the instruction, and the scorer's own
     // START_VALUE is the single source of truth for 100.
+  },
+  {
+    id: 'sentence-repetition-1',
+    section: 'Sentence Repetition (1)',
+    instructionTextEn:
+      'Listen to the following sentence, then repeat it back exactly, word for word.',
+    instructionTextTh: 'ฟังประโยคต่อไปนี้ แล้วพูดทวนให้เหมือนเดิมทุกคำ',
+    countdownSec: 0,
+    timeLimitSec: 15,
+    scorerId: 'sentence-repetition-1',
+    instructionAudio: INSTR.sentenceRepeat,
+    audio: SENTENCE_1_AUDIO
+  },
+  {
+    id: 'sentence-repetition-2',
+    // Distinct from item 1's section: SessionResults labels rows by section,
+    // and two rows both reading "Sentence Repetition" would be unreadable --
+    // the same reason the two Abstraction items carry distinct sections.
+    section: 'Sentence Repetition (2)',
+    // Same instruction as item 1. MoCA gives it once and reuses it, the same
+    // way instr-vigilance names both inputs once rather than per-attempt.
+    instructionTextEn:
+      'Listen to the following sentence, then repeat it back exactly, word for word.',
+    instructionTextTh: 'ฟังประโยคต่อไปนี้ แล้วพูดทวนให้เหมือนเดิมทุกคำ',
+    countdownSec: 0,
+    timeLimitSec: 15,
+    scorerId: 'sentence-repetition-2',
+    instructionAudio: INSTR.sentenceRepeat,
+    audio: SENTENCE_2_AUDIO
+  },
+  {
+    id: 'verbal-fluency',
+    section: 'Verbal Fluency',
+    instructionTextEn: 'Say as many words as you can that begin with the letter ก, within one minute.',
+    instructionTextTh: 'บอกคำที่ขึ้นต้นด้วย ก ให้ได้มากที่สุด ภายในหนึ่งนาที',
+    countdownSec: 0,
+    // The only normed response deadline in the whole instrument -- every other
+    // subtest's timeLimitSec is a process-data budget only, never enforced.
+    // autoStopMs is what actually enforces it: useSubtestSession stops and
+    // scores the recording automatically once it elapses.
+    timeLimitSec: 60,
+    autoStopMs: 60_000,
+    scorerId: 'verbal-fluency',
+    instructionAudio: INSTR.verbalFluency
+    // No `audio`: the category letter is named in the instruction, so there
+    // is nothing separate to play.
   },
   {
     id: 'abstraction-1',

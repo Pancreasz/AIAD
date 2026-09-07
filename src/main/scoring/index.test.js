@@ -60,6 +60,25 @@ describe('scoreItem', () => {
     expect(scoreItem('abstraction-2', 'ยานพาหนะ', {})).toMatchObject({ score: 0 })
   })
 
+  // Both sentence items share a scorer, so the dispatch has to carry which
+  // sentence was asked.
+  it('dispatches each sentence repetition item against its own expected sentence', () => {
+    expect(
+      scoreItem('sentence-repetition-1', 'ฉันรู้ว่าจอมเป็นคนเดียวที่มาช่วยงานวันนี้', {})
+    ).toMatchObject({ score: 1, maxScore: 1 })
+    expect(
+      scoreItem('sentence-repetition-2', 'แมวมักซ่อนตัวอยู่หลังเก้าอี้เมื่อมีหมาอยู่ในห้อง', {})
+    ).toMatchObject({ score: 1, maxScore: 1 })
+    expect(scoreItem('sentence-repetition-2', 'ฉันรู้ว่าจอมเป็นคนเดียวที่มาช่วยงานวันนี้', {})).toMatchObject(
+      { score: 0 }
+    )
+  })
+
+  it('dispatches to the verbal fluency scorer', () => {
+    const result = scoreItem('verbal-fluency', 'กา กบ', {})
+    expect(result).toMatchObject({ maxScore: 1, wordCount: 2 })
+  })
+
   it('throws for an unknown subtest id', () => {
     expect(() => scoreItem('unknown-subtest', 'text', {})).toThrow(
       'No scorer registered for subtest "unknown-subtest"'

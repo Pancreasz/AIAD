@@ -50,7 +50,13 @@ function recallInterval(results) {
 // microphone was open, which includes an operator's hand on the Stop button
 // and so is not comparable between subtests, let alone between patients.
 function processData(result) {
-  if (result.skipped || typeof result.hits !== 'number') return null
+  if (result.skipped) return null
+
+  if (typeof result.wordCount === 'number') {
+    return `${result.wordCount} word${result.wordCount === 1 ? '' : 's'} starting with ก`
+  }
+
+  if (typeof result.hits !== 'number') return null
 
   const counts = `${result.hits} hits, ${result.misses} misses, ${result.falseTaps} false taps`
   const latencies = result.tapLatencies ?? []

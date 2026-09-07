@@ -16,11 +16,11 @@ class FakeSegment:
 class FakeModel:
     def __init__(self):
         self.calls = []
-        self.options = []
+        self.vad_filter = None
 
-    def transcribe(self, audio, language=None, **options):
+    def transcribe(self, audio, language=None, vad_filter=None):
         self.calls.append(language)
-        self.options.append(options)
+        self.vad_filter = vad_filter
         return [FakeSegment(" สิงโต"), FakeSegment(" แรด")], {}
 
 
@@ -77,19 +77,17 @@ def test_transcribe_passes_the_requested_language_through():
     assert fake.calls == ["th"]
 
 
-def test_transcribe_applies_the_constrained_decoding_options():
-    """Regression guard for the digit-span runaway: without these options the
-    fine-tuned model repeats short answers and the temperature fallback pushes
-    decode time past the ASR timeout. See DECODE_OPTIONS in asr_server."""
+def test_transcribe_enables_vad_filter_to_skip_silence():
+    """Without this, faster-whisper on CPU can enter a repetition/hallucination
+    loop on silence and decode to the maximum token length -- measured at 53s
+    for a 10s pure-silence clip, against this app's 60s hard timeout. VAD
+    filtering skips the silent region instead of decoding it (0.6s measured
+    on the same clip) and is the documented fix for that risk."""
     fake = FakeModel()
     asr_server._model = fake
     client = TestClient(asr_server.app)
     _post_audio(client)
-    opts = fake.options[0]
-    assert opts["temperature"] == 0
-    assert opts["without_timestamps"] is True
-    assert opts["condition_on_previous_text"] is False
-    assert opts["no_repeat_ngram_size"] == 3
+    assert fake.vad_filter is True
 
 
 def test_transcribe_offloads_both_the_model_call_and_the_segment_drain():
@@ -114,7 +112,7 @@ def test_transcribe_offloads_both_the_model_call_and_the_segment_drain():
             self.call_thread_name = None
             self.drain_thread_name = None
 
-        def transcribe(self, audio, language=None, **options):
+        def transcribe(self, audio, language=None, vad_filter=None):
             self.call_thread_name = threading.current_thread().name
 
             def _segments():
