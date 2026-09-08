@@ -313,8 +313,16 @@ export function TrailMaking({ onFinish, instructionEn, instructionTh }) {
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect
-        const canvasWidth = width
-        const canvasHeight = height
+        const containerRatio = width / height
+        
+        let canvasWidth, canvasHeight
+        if (containerRatio > currentRatio) {
+          canvasHeight = height
+          canvasWidth = height * currentRatio
+        } else {
+          canvasWidth = width
+          canvasHeight = width / currentRatio
+        }
         
         const dpr = window.devicePixelRatio || 1
         canvas.width = canvasWidth * dpr
