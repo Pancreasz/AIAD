@@ -5,6 +5,8 @@ import { createAudioPlayer } from './AudioPlayer.js'
 import { createDigitSequencePlayer } from './DigitSequencePlayer.js'
 import { SUBTESTS } from './subtests.js'
 import { SessionResults } from '../pages/SessionResults.jsx'
+import { DrawingTest } from '../components/DrawingTest.jsx'
+import { TrailMaking } from '../components/TrailMaking.jsx'
 
 // TODO(follow-on plan): replace with a real settings screen. Hardcoded here
 // because this plan doesn't build session configuration — see "What's
@@ -60,6 +62,7 @@ export function SessionRunner() {
     isLastSubtest,
     beginSubtest,
     finishRecording,
+    finishDrawing,
     retryRecording,
     skipSubtest,
     continueToNext,
@@ -123,6 +126,37 @@ export function SessionRunner() {
 
   const stepNumber = Math.min(index + 1, total)
   const asrLabel = ASR_LABELS[asrStatus] ?? asrStatus
+
+  // Visuospatial subtests take over the stage with a drawing canvas. The
+  // component captures the drawing and calls finishDrawing() when the patient
+  // presses Finish; the session header stays above it for continuity with
+  // every other subtest (progress, step count).
+  if (phase === 'clock-drawing' || phase === 'cube-drawing' || phase === 'trail-making') {
+    return (
+      <div className="session-runner">
+        <SessionHeader
+          section={currentSubtest.section}
+          stepNumber={stepNumber}
+          total={total}
+          asrLabel={asrLabel}
+        />
+        {phase === 'trail-making' ? (
+          <TrailMaking
+            onFinish={finishDrawing}
+            instructionEn={currentSubtest.instructionTextEn}
+            instructionTh={currentSubtest.instructionTextTh}
+          />
+        ) : (
+          <DrawingTest
+            testId={phase.split('-')[0]}
+            onFinish={finishDrawing}
+            instructionEn={currentSubtest.instructionTextEn}
+            instructionTh={currentSubtest.instructionTextTh}
+          />
+        )}
+      </div>
+    )
+  }
 
   if (phase === 'error') {
     return (

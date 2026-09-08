@@ -8,6 +8,11 @@ const defaultDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 // before the mic opens or the digit sequence begins.
 const START_FLASH_MS = 600
 
+// The three visuospatial subtests answered by drawing on a canvas rather than
+// by speech or a tap. Each hands the stage to a drawing component that calls
+// finishDrawing() when the patient is done.
+const DRAWING_RESPONSE_MODES = new Set(['clock-drawing', 'cube-drawing', 'trail-making'])
+
 export function useSubtestSession(
   subtests,
   {
@@ -215,6 +220,16 @@ export function useSubtestSession(
         return
       }
 
+      // Visuospatial subtests have no mic and no digit sequence: hand the
+      // stage to the canvas component (phase === the responseMode), which
+      // calls finishDrawing() when the patient presses Finish. Timed from
+      // here so responseMs covers the whole drawing attempt.
+      if (DRAWING_RESPONSE_MODES.has(currentSubtest.responseMode)) {
+        recordingStartedAtRef.current = Date.now()
+        setPhase(currentSubtest.responseMode)
+        return
+      }
+
       const recorder = createRecorder()
       await recorder.start()
       if (abandoned()) {
@@ -275,6 +290,45 @@ export function useSubtestSession(
       setPhase('error')
     }
   }, [currentSubtest, transcribeAudio, scoreItem, sessionContext, completeSubtest])
+
+  // The drawing counterpart to finishRecording: called by the canvas component
+  // with its captured drawing ({ strokes, image, jsonStr } for clock/cube, and
+  // { strokes, analysis, image } for trail making). Scored on the main process
+  // via the drawing scorers, which pass image/JSON on to the sidecar's
+  // /clock and /cube endpoints (trail making is scored locally from analysis).
+  const finishDrawing = useCallback(
+    async (drawingData) => {
+      const generation = generationRef.current
+      const abandoned = () => generationRef.current !== generation
+      setPhase('scoring')
+      try {
+        const responseMs = Date.now() - (recordingStartedAtRef.current || Date.now())
+        const scoreResult = await scoreItem(currentSubtest.scorerId, '', {
+          drawing: drawingData,
+          referenceDate: new Date(),
+          ...sessionContext
+        })
+        if (abandoned()) return
+
+        if (import.meta.env.MODE !== 'test') {
+          console.log(
+            `[DRAW] ${currentSubtest.id}\n` +
+              `  score:    ${scoreResult.score}/${scoreResult.maxScore}\n` +
+              `  remarks:  ${scoreResult.remarks ?? '(none)'}\n` +
+              `  response: ${(responseMs / 1000).toFixed(1)}s`,
+            scoreResult
+          )
+        }
+
+        completeSubtest(scoreResult, { transcript: '', engine: null, responseMs })
+      } catch (err) {
+        if (abandoned()) return
+        setError(err.message)
+        setPhase('error')
+      }
+    },
+    [currentSubtest, scoreItem, sessionContext, completeSubtest]
+  )
 
   // Verbal Fluency's real, normed 60-second deadline -- the one subtest in
   // the instrument where a slow patient is *supposed* to be cut off, unlike
@@ -349,6 +403,7 @@ export function useSubtestSession(
     isLastSubtest,
     beginSubtest,
     finishRecording,
+    finishDrawing,
     retryRecording,
     skipSubtest,
     continueToNext,

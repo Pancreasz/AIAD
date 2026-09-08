@@ -26,3 +26,9 @@ screenshots/
 # .claude/
 # CLAUDE.md
 # graphify-out/
+
+# Visuospatial tests: drawing sidecar artifacts and CNN weights
+patch.js
+models/
+resized_uploads/
+save/

@@ -9,7 +9,7 @@ import io
 import os
 import threading
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from model_paths import resolve_model
@@ -116,6 +116,129 @@ async def transcribe(file: UploadFile = File(...), language: str = Form("th")):
     audio = io.BytesIO(await file.read())
     text = await run_in_threadpool(_transcribe_sync, _model, audio, language)
     return {"text": text}
+
+
+# --- Visuospatial drawing scorers -------------------------------------------
+#
+# The clock and cube tests are scored here, in the same process as ASR, so the
+# renderer talks to a single sidecar (see src/main/scoring/drawing.js, which
+# POSTs to these two endpoints on the ASR base URL). Torch, Pillow and
+# matplotlib are imported lazily inside the endpoints rather than at module
+# top: importing this module in tests must stay cheap, and a session that never
+# reaches the drawing tests should not pay to load a CNN stack.
+
+# The clock CNN weights live outside the sidecar dir (multi-MB, gitignored
+# under models/). Resolved once here so a missing file surfaces as a clear
+# error from the endpoint rather than an import-time crash.
+CLOCK_MODEL_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models", "moca_densenet.pth"
+)
+
+
+def _score_cube_json(data):
+    """Validate the drawing payload and run the geometric cube scorer.
+
+    Mirrors the field contract the renderer's DrawingTest emits: a JSON object
+    carrying testId "cube", a cropBox, and a strokes array.
+    """
+    from cube_scorer import (
+        Config,
+        cluster_vertices,
+        extract_edges,
+        normalize_to_crop,
+        score_cube,
+    )
+
+    if not isinstance(data, dict):
+        raise ValueError("Request body must be a JSON object.")
+    if data.get("testId") != "cube":
+        raise ValueError("JSON testId must be 'cube'.")
+    if "cropBox" not in data:
+        raise ValueError("Missing cropBox.")
+    if "strokes" not in data or not isinstance(data["strokes"], list):
+        raise ValueError("Missing or invalid strokes.")
+
+    cfg = Config()
+    strokes = normalize_to_crop(data)
+    if not strokes:
+        raise ValueError("No valid drawing strokes found.")
+
+    edges = extract_edges(strokes, cfg)
+    vertices = cluster_vertices(edges, cfg.endpoint_radius)
+    return score_cube(strokes, edges, vertices, cfg)
+
+
+@app.post("/cube")
+async def cube(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=415, detail="Expected a JSON request body.")
+
+    try:
+        result = await run_in_threadpool(_score_cube_json, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001 - reported to the renderer verbatim
+        raise HTTPException(status_code=500, detail=f"Cube scoring failed: {exc}")
+
+    # Flatten the scorer's `metrics` up into `details` too, so the renderer's
+    # remark string (details.edgesDetected / verticesDetected) reads the values
+    # whether it looks at the top level or under metrics.
+    details = {**result, **result.get("metrics", {})}
+    return {
+        "test": "cube",
+        "score": result.get("score", 0),
+        "confidence": result.get("confidence", 0.0),
+        "details": details,
+    }
+
+
+@app.post("/clock")
+async def clock(file: UploadFile = File(...)):
+    import tempfile
+
+    from PIL import Image, UnidentifiedImageError
+
+    from clock_scorer import predict_clock_image
+
+    if not os.path.isfile(CLOCK_MODEL_PATH):
+        raise HTTPException(
+            status_code=503,
+            detail=f"Clock model weights not found at {CLOCK_MODEL_PATH}",
+        )
+
+    content = await file.read()
+    try:
+        image = Image.open(io.BytesIO(content))
+        image.verify()
+        image = Image.open(io.BytesIO(content)).convert("RGBA")
+    except (UnidentifiedImageError, Exception):
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid image.")
+
+    # Flatten any transparency onto white before handing the CNN a fixed
+    # 224x224 RGB frame -- a transparent canvas would otherwise read as black.
+    white_bg = Image.new("RGB", image.size, (255, 255, 255))
+    mask = image.split()[3] if len(image.split()) > 3 else None
+    white_bg.paste(image, mask=mask)
+    resized = white_bg.resize((224, 224))
+
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp_path = tmp.name
+    try:
+        resized.save(tmp_path, "JPEG")
+        score = await run_in_threadpool(predict_clock_image, tmp_path, CLOCK_MODEL_PATH)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - reported to the renderer verbatim
+        raise HTTPException(status_code=500, detail=f"Clock scoring failed: {exc}")
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+    return {"test": "clock", "score": score, "predicted_moca_score": score}
 
 
 def main():

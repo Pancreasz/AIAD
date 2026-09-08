@@ -45,10 +45,12 @@ function recallInterval(results) {
   return { text: formatGap(elapsedMs), short: elapsedMs < PROTOCOL_RECALL_GAP_MS }
 }
 
-// Process data a paper form throws away. Only the tap subtest produces any so
-// far: `responseMs` is deliberately excluded because it measures how long the
-// microphone was open, which includes an operator's hand on the Stop button
-// and so is not comparable between subtests, let alone between patients.
+// Process data a paper form throws away. The tap subtest reports hit/miss
+// counts, verbal fluency its word count, and the drawing subtests the remark
+// their scorer produced (predicted clock score, cube confidence, trail-making
+// errors). `responseMs` is deliberately excluded because it measures how long
+// the microphone was open, which includes an operator's hand on the Stop
+// button and so is not comparable between subtests, let alone between patients.
 function processData(result) {
   if (result.skipped) return null
 
@@ -56,14 +58,19 @@ function processData(result) {
     return `${result.wordCount} word${result.wordCount === 1 ? '' : 's'} starting with ก`
   }
 
-  if (typeof result.hits !== 'number') return null
+  if (typeof result.hits === 'number') {
+    const counts = `${result.hits} hits, ${result.misses} misses, ${result.falseTaps} false taps`
+    const latencies = result.tapLatencies ?? []
+    if (!latencies.length) return counts
 
-  const counts = `${result.hits} hits, ${result.misses} misses, ${result.falseTaps} false taps`
-  const latencies = result.tapLatencies ?? []
-  if (!latencies.length) return counts
+    const mean = Math.round(latencies.reduce((sum, ms) => sum + ms, 0) / latencies.length)
+    return `${counts} · ${mean} ms mean`
+  }
 
-  const mean = Math.round(latencies.reduce((sum, ms) => sum + ms, 0) / latencies.length)
-  return `${counts} · ${mean} ms mean`
+  // Drawing subtests: surface the scorer's own remark verbatim.
+  if (typeof result.remarks === 'string' && result.remarks) return result.remarks
+
+  return null
 }
 
 export function SessionResults({ results, subtests, onRestart }) {
