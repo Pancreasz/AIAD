@@ -133,13 +133,7 @@ export function SessionRunner() {
   // every other subtest (progress, step count).
   if (phase === 'clock-drawing' || phase === 'cube-drawing' || phase === 'trail-making') {
     return (
-      <div className="session-runner">
-        <SessionHeader
-          section={currentSubtest.section}
-          stepNumber={stepNumber}
-          total={total}
-          asrLabel={asrLabel}
-        />
+      <div className="drawing-mode-wrapper">
         {phase === 'trail-making' ? (
           <TrailMaking
             onFinish={finishDrawing}

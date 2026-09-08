@@ -336,17 +336,8 @@ export function DrawingTest({ onFinish, instructionEn, instructionTh, testId = '
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect
-        const containerRatio = width / height
-        
-        let canvasWidth, canvasHeight
-        
-        if (containerRatio > currentRatio) {
-          canvasHeight = height
-          canvasWidth = height * currentRatio
-        } else {
-          canvasWidth = width
-          canvasHeight = width / currentRatio
-        }
+        const canvasWidth = width
+        const canvasHeight = height
         
         const dpr = window.devicePixelRatio || 1
         canvas.width = canvasWidth * dpr
