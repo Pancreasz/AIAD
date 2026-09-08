@@ -15,3 +15,5 @@ __pycache__/
 .superpowers/
 patch.js
 models/
+resized_uploads/
+save/

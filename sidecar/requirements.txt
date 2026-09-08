@@ -1,6 +1,16 @@
-faster-whisper>=1.0.3
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-python-multipart>=0.0.9
-pytest>=8.0.0
-httpx>=0.27.0
+# faster-whisper>=1.0.3
+# fastapi>=0.115.0
+# uvicorn[standard]>=0.30.0
+# python-multipart>=0.0.9
+# pytest>=8.0.0
+# httpx>=0.27.0
+fastapi
+uvicorn
+python-multipart
+slowapi
+torch>=2.2.0
+torchvision
+Pillow==10.1.0
+numpy==1.26.0
+matplotlib==3.8.2
+faster-whisper

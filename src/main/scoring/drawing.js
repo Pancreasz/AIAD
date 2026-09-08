@@ -17,12 +17,13 @@ export function scoreTrailMaking(context) {
   return { score, maxScore: 1, remarks, analysis, drawingSaved: !!context.drawing }
 }
 
-export async function scoreCubeDrawing(context) {
+export async function scoreCubeDrawing(context, options = {}) {
   let score = 0
   let remarks = 'Failed to score via API.'
   try {
+    const baseUrl = options.baseUrl ? options.baseUrl() : 'http://127.0.0.1:8000'
     if (context.drawing && context.drawing.jsonStr) {
-      const res = await fetch('http://localhost:8000/cube', {
+      const res = await fetch(`${baseUrl}/cube`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: context.drawing.jsonStr
@@ -45,10 +46,11 @@ export async function scoreCubeDrawing(context) {
   return { score, maxScore: 1, remarks, drawingSaved: !!context.drawing }
 }
 
-export async function scoreClockDrawing(context) {
+export async function scoreClockDrawing(context, options = {}) {
   let score = 0
   let remarks = 'Failed to score via API.'
   try {
+    const baseUrl = options.baseUrl ? options.baseUrl() : 'http://127.0.0.1:8000'
     if (context.drawing && context.drawing.image) {
       const dataUrl = context.drawing.image
       const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
@@ -57,7 +59,7 @@ export async function scoreClockDrawing(context) {
         const blob = new Blob([buffer], { type: 'image/png' })
         const formData = new FormData()
         formData.append('file', blob, 'clock.png')
-        const res = await fetch('http://localhost:8000/clock', {
+        const res = await fetch(`${baseUrl}/clock`, {
           method: 'POST',
           body: formData
         })

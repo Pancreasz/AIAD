@@ -3,7 +3,7 @@ import { resolve } from 'path'
 
 export const SIDECAR_DIR = resolve('sidecar')
 export const VENV_DIR = resolve(SIDECAR_DIR, '.venv')
-export const SERVER_SCRIPT = resolve(SIDECAR_DIR, 'asr_server.py')
+export const SERVER_SCRIPT = resolve(SIDECAR_DIR, 'app_combined.py')
 
 export function venvPython() {
   return process.platform === 'win32'

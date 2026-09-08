@@ -9,7 +9,7 @@ import { scoreSentenceRepetition } from './sentenceRepetition.js'
 import { scoreVerbalFluency } from './verbalFluency.js'
 import { scoreTrailMaking, scoreCubeDrawing, scoreClockDrawing } from './drawing.js'
 
-export async function scoreItem(subtestId, transcript, context) {
+export async function scoreItem(subtestId, transcript, context, options = {}) {
   switch (subtestId) {
     case 'orientation':
       return scoreOrientation(transcript, context)
@@ -37,9 +37,9 @@ export async function scoreItem(subtestId, transcript, context) {
     case 'trail-making':
       return scoreTrailMaking(context)
     case 'cube-drawing':
-      return scoreCubeDrawing(context)
+      return scoreCubeDrawing(context, options)
     case 'clock-drawing':
-      return scoreClockDrawing(context)
+      return scoreClockDrawing(context, options)
     default:
       throw new Error(`No scorer registered for subtest "${subtestId}"`)
   }

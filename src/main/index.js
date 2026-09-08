@@ -97,7 +97,7 @@ app.whenReady().then(() => {
     try {
       const fs = require('fs')
       const path = require('path')
-      const targetDir = 'E:/vsaiad/save'
+      const targetDir = path.resolve('save')
       fs.mkdirSync(targetDir, { recursive: true })
       
       const filePath = path.join(targetDir, filename)
@@ -122,18 +122,17 @@ app.whenReady().then(() => {
   // model in the background. See the spec's "Startup must not block the window".
   const pendingSidecar = startSidecar()
 
-  registerAsrHandlers({
+  const sidecarOptions = {
     isReady: () => (sidecar ? sidecar.isReady() : false),
     status: () => {
       if (sidecar) return sidecar.status()
-      // findFreePort() (or the port lookup) rejected before the sidecar could
-      // even be constructed -- report the true outcome instead of leaving the
-      // UI stuck on "loading" for the rest of the session.
       return sidecarStartupFailed ? 'unavailable' : 'loading'
     },
     baseUrl: () => (sidecar ? sidecar.baseUrl() : 'http://127.0.0.1:0')
-  })
-  registerScoringHandlers()
+  }
+  
+  registerAsrHandlers(sidecarOptions)
+  registerScoringHandlers(sidecarOptions)
 
   pendingSidecar.catch((error) => {
     sidecarStartupFailed = true
